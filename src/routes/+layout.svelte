@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import { activeBrand, brandToCssVars } from '$lib/brand';
 	import Logo from '$lib/components/Logo.svelte';
 
@@ -11,9 +12,19 @@
 	// it in src/lib/brand/index.ts, and build with VITE_BRAND=<id>.
 	// Default brand is 'pathfinder'. No component edits required.
 
-	let { children } = $props();
+	import type { LayoutData } from './$types';
+
+	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 	const brand = activeBrand;
 	const cssVars = brandToCssVars(brand);
+	const user = $derived(data.user);
+
+	// Mark the document hydrated once the client app mounts. Lets E2E tests wait
+	// for interactivity before driving progressively-enhanced forms (no race
+	// against a pre-hydration native submit).
+	onMount(() => {
+		document.documentElement.setAttribute('data-hydrated', 'true');
+	});
 </script>
 
 <svelte:head>
@@ -30,7 +41,11 @@
 			<Logo label={brand.productName} size={26} />
 		</a>
 		<nav class="site-nav" aria-label="Primary">
-			<a href="/login" class="btn-ghost">Sign in</a>
+			{#if user}
+				<a href="/dashboard" class="btn-ghost">Dashboard</a>
+			{:else}
+				<a href="/login" class="btn-ghost">Sign in</a>
+			{/if}
 		</nav>
 	</header>
 

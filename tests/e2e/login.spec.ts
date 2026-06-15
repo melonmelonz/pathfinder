@@ -1,8 +1,9 @@
-// Seed E2E spec (Epic E14 / accessibility Epic E12). Worked example for the
-// per-AC Playwright tests described in docs/04-tdd-plan.md (T-<AC> ids).
+// Login form accessibility (Epic E2 / Epic E12). The labeled-fields contract
+// for the sign-in form. The full login + dashboard flow lives in auth.spec.ts
+// (T-2.1.1 / T-2.1.2).
 import { test, expect } from '@playwright/test';
 
-test('T-2.1.1 login form exposes accessible, labeled fields', async ({ page }) => {
+test('login form exposes accessible, labeled fields', async ({ page }) => {
 	await page.goto('/login');
 
 	// Fields are reachable by their accessible label (real <label for=...>).
@@ -13,9 +14,8 @@ test('T-2.1.1 login form exposes accessible, labeled fields', async ({ page }) =
 	await expect(email).toHaveAttribute('type', 'email');
 	await expect(password).toHaveAttribute('type', 'password');
 
-	// Submit shows the Sprint 1 backend notice (no real auth yet).
-	await page.getByRole('button', { name: 'Sign in' }).click();
-	await expect(page.getByRole('status')).toContainText(/Sprint 1/i);
+	// The form carries an aria-live region for errors and a submit control.
+	await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 
 	await page.screenshot({ path: 'tests/e2e/__screenshots__/login.png', fullPage: true });
 });

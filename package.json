@@ -11,7 +11,11 @@
     "deploy": "wrangler pages deploy .svelte-kit/cloudflare",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "db:migrate:local": "wrangler d1 migrations apply pathfinder --local",
+    "db:migrate": "wrangler d1 migrations apply pathfinder --remote",
+    "db:seed:local": "node scripts/seed-dev.mjs > .wrangler/seed.sql && wrangler d1 execute pathfinder --local --file=.wrangler/seed.sql",
+    "e2e:serve": "npm run build && npm run db:migrate:local && npm run db:seed:local && wrangler pages dev .svelte-kit/cloudflare --port 4173 --local --d1 DB=33c6c16e-5849-4aec-8afa-49ee6fdf87d7"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",

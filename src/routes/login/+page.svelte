@@ -1,22 +1,30 @@
 <script lang="ts">
 	import { activeBrand } from '$lib/brand';
+	import { enhance } from '$app/forms';
+	import type { ActionData } from './$types';
+
 	const brand = activeBrand;
 
-	// Static login form. No authentication backend yet - the JWT/API-key
-	// auth port lands in Sprint 1 (Epic E2). Submitting shows a notice.
-	let notice = $state('');
-
-	function handleSubmit(event: Event) {
-		event.preventDefault();
-		notice = 'Authentication backend arrives in Sprint 1. This form is a static foundation.';
-	}
+	let { form }: { form: ActionData } = $props();
+	let submitting = $state(false);
 </script>
 
 <section class="login">
 	<h1>Sign in to {brand.productName}</h1>
 	<p class="intro">Access your facility maps, scans, and review projects.</p>
 
-	<form class="form" onsubmit={handleSubmit} novalidate>
+	<form
+		class="form"
+		method="POST"
+		use:enhance={() => {
+			submitting = true;
+			return async ({ update }) => {
+				// Keep typed values on validation failure; redirect handled by SvelteKit.
+				await update({ reset: false });
+				submitting = false;
+			};
+		}}
+	>
 		<div class="field">
 			<label for="email">Email address</label>
 			<input
@@ -25,6 +33,7 @@
 				type="email"
 				autocomplete="email"
 				inputmode="email"
+				value={form?.email ?? ''}
 				required
 				aria-required="true"
 			/>
@@ -42,11 +51,15 @@
 			/>
 		</div>
 
-		<button class="btn-primary" type="submit">Sign in</button>
+		<button class="btn-primary" type="submit" disabled={submitting}>
+			{submitting ? 'Signing in...' : 'Sign in'}
+		</button>
 
-		{#if notice}
-			<p class="notice" role="status" aria-live="polite">{notice}</p>
-		{/if}
+		<div class="error-region" aria-live="assertive">
+			{#if form?.error}
+				<p class="error" role="alert">{form.error}</p>
+			{/if}
+		</div>
 	</form>
 
 	<p class="support">
@@ -109,13 +122,17 @@
 		background: var(--brand-accent);
 		border-color: var(--brand-accent);
 	}
-	.notice {
+	.btn-primary:disabled {
+		opacity: 0.6;
+		cursor: progress;
+	}
+	.error-region {
+		min-height: 1.2em;
+	}
+	.error {
 		color: var(--brand-accent);
 		font-size: 0.9rem;
-		background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
-		border: 1px solid var(--brand-secondary);
-		border-radius: var(--radius);
-		padding: var(--space-2) var(--space-3);
+		margin: 0;
 	}
 	.support {
 		margin-top: var(--space-4);

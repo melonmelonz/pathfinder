@@ -8,10 +8,11 @@ compatibility_flags = ["nodejs_compat"]
 # create resources with wrangler and store IDs in the CF dashboard / .dev.vars.
 
 # D1 database (binding DB) - app state, SQLite + FTS5 search.
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "pathfinder"
-# database_id = "REPLACE_WITH_D1_ID"
+[[d1_databases]]
+binding = "DB"
+database_name = "pathfinder"
+database_id = "33c6c16e-5849-4aec-8afa-49ee6fdf87d7"
+migrations_dir = "migrations"
 
 # R2 bucket (binding DOCUMENTS) - floorplans, SPZ/mp4 scans, master PLY cold archive.
 # [[r2_buckets]]
