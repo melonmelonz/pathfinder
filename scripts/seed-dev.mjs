@@ -54,11 +54,12 @@ for (const u of USERS) {
 	const salt = uuid();
 	const hash = await hashPassword(u.password, salt);
 	lines.push(
-		`INSERT INTO users (id, name, email, password_hash, salt, role, org, active, mfa_enabled, created_at)\n` +
-			`VALUES ('${id}', '${esc(u.name)}', '${esc(u.email)}', '${hash}', '${salt}', '${u.role}', '${esc(u.org)}', 1, 0, datetime('now'))\n` +
+		`INSERT INTO users (id, name, email, password_hash, salt, role, org, active, mfa_enabled, token_version, created_at)\n` +
+			`VALUES ('${id}', '${esc(u.name)}', '${esc(u.email)}', '${hash}', '${salt}', '${u.role}', '${esc(u.org)}', 1, 0, 0, datetime('now'))\n` +
 			`ON CONFLICT(email) DO UPDATE SET\n` +
 			`  password_hash=excluded.password_hash, salt=excluded.salt,\n` +
-			`  name=excluded.name, role=excluded.role, org=excluded.org, active=1;`
+			`  name=excluded.name, role=excluded.role, org=excluded.org, active=1,\n` +
+			`  token_version=0;`
 	);
 }
 

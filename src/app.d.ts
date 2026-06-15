@@ -29,7 +29,7 @@ declare global {
 				DB: D1Database;
 				JWT_SECRET?: string;
 				// DOCUMENTS: R2Bucket;
-				// CACHE: KVNamespace;
+				CACHE?: KVNamespace;
 			};
 		}
 	}

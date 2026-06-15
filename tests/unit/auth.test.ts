@@ -11,7 +11,10 @@ import {
 	hashPassword,
 	verifyPassword,
 	signJWT,
-	verifyJWT
+	verifyJWT,
+	getJwtSecret,
+	DEV_JWT_SECRET,
+	constantTimeEqualB64url
 } from '../../src/lib/server/auth';
 
 const SECRET = 'test-secret-do-not-use-in-prod';
@@ -86,5 +89,59 @@ describe('signJWT / verifyJWT (HS256)', () => {
 		const token = await signJWT({ sub: 'user-1', exp: future }, SECRET);
 		const decoded = await verifyJWT(token, SECRET);
 		expect(decoded.sub).toBe('user-1');
+	});
+
+	// Fix 4: the alg/typ header must be pinned BEFORE signature verification, so
+	// an attacker cannot downgrade to alg:"none" or another family.
+	it('rejects a token whose header alg is not HS256', async () => {
+		const body = Buffer.from(JSON.stringify({ sub: 'user-1' })).toString('base64url');
+		// Forge a header claiming alg:"none" and an empty signature.
+		const noneHeader = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString(
+			'base64url'
+		);
+		await expect(verifyJWT(`${noneHeader}.${body}.`, SECRET)).rejects.toThrow(/alg/i);
+
+		// A header with the wrong typ is also rejected.
+		const badTyp = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'NOPE' })).toString(
+			'base64url'
+		);
+		await expect(verifyJWT(`${badTyp}.${body}.`, SECRET)).rejects.toThrow(/typ/i);
+
+		// A garbage (non-JSON) header is rejected too.
+		await expect(verifyJWT(`%%%.${body}.`, SECRET)).rejects.toThrow();
+	});
+});
+
+describe('constantTimeEqualB64url (fix 2)', () => {
+	it('returns true for identical base64url strings', () => {
+		expect(constantTimeEqualB64url('AAAA', 'AAAA')).toBe(true);
+	});
+
+	it('returns false for differing values of equal length', () => {
+		expect(constantTimeEqualB64url('AAAA', 'AAAB')).toBe(false);
+	});
+
+	it('returns false for differing lengths', () => {
+		expect(constantTimeEqualB64url('AAAA', 'AAAAAA')).toBe(false);
+	});
+});
+
+describe('getJwtSecret (fix 1: fail-closed)', () => {
+	it('returns a real configured secret regardless of dev flag', () => {
+		expect(getJwtSecret({ JWT_SECRET: 'real-prod-secret' }, false)).toBe('real-prod-secret');
+		expect(getJwtSecret({ JWT_SECRET: 'real-prod-secret' }, true)).toBe('real-prod-secret');
+	});
+
+	it('allows the dev fallback only in local dev', () => {
+		expect(getJwtSecret({}, true)).toBe(DEV_JWT_SECRET);
+		expect(getJwtSecret({ JWT_SECRET: DEV_JWT_SECRET }, true)).toBe(DEV_JWT_SECRET);
+	});
+
+	it('THROWS when no real secret is set and not in dev', () => {
+		// Missing secret outside dev: fail closed.
+		expect(() => getJwtSecret({}, false)).toThrow();
+		// The public dev string outside dev is also refused.
+		expect(() => getJwtSecret({ JWT_SECRET: DEV_JWT_SECRET }, false)).toThrow();
+		expect(() => getJwtSecret(undefined, false)).toThrow();
 	});
 });

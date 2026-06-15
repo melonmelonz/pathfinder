@@ -16,11 +16,15 @@ export interface SessionUser {
 	mfa_enabled: number;
 }
 
-type Env = { DB: D1Database; JWT_SECRET?: string };
+type Env = { DB: D1Database; JWT_SECRET?: string; CACHE?: KVNamespace };
+
+/** Internal row shape: the public SessionUser plus the revocation counter. */
+type SessionUserRow = SessionUser & { token_version: number };
 
 /**
  * Resolve a JWT into the live user row from D1. Returns null if the token is
- * missing, invalid, expired, or the user is gone/inactive.
+ * missing, invalid, expired, the user is gone/inactive, or the token has been
+ * revoked (its `tv` claim no longer matches the user's token_version).
  */
 export async function userFromToken(
 	token: string | undefined | null,
@@ -30,12 +34,16 @@ export async function userFromToken(
 	try {
 		const payload = await verifyJWT(token, getJwtSecret(env));
 		const row = await env.DB.prepare(
-			'SELECT id, name, email, role, org, active, mfa_enabled FROM users WHERE id = ?'
+			'SELECT id, name, email, role, org, active, mfa_enabled, token_version FROM users WHERE id = ?'
 		)
 			.bind(payload.sub)
-			.first<SessionUser>();
+			.first<SessionUserRow>();
 		if (!row || !row.active) return null;
-		return row;
+		// Revocation check: a bumped token_version invalidates older tokens.
+		const tv = typeof payload.tv === 'number' ? payload.tv : 0;
+		if (tv !== (row.token_version ?? 0)) return null;
+		const { token_version: _tv, ...user } = row;
+		return user;
 	} catch {
 		return null;
 	}

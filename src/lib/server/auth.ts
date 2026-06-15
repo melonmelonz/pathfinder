@@ -59,7 +59,28 @@ export async function verifyPassword(
 	hash: string
 ): Promise<boolean> {
 	const computed = await hashPassword(password, salt);
-	return computed === hash;
+	return constantTimeEqualB64url(computed, hash);
+}
+
+/**
+ * Constant-time comparison of two base64url strings. Decodes both to bytes and
+ * XOR-accumulates every byte so the running time does not leak how many leading
+ * bytes matched (a `===` string compare short-circuits and is timing-leaky).
+ * A length mismatch (or a malformed input) returns false in constant time.
+ */
+export function constantTimeEqualB64url(a: string, b: string): boolean {
+	let ab: Uint8Array;
+	let bb: Uint8Array;
+	try {
+		ab = b64urlDecode(a);
+		bb = b64urlDecode(b);
+	} catch {
+		return false;
+	}
+	if (ab.length !== bb.length) return false;
+	let diff = 0;
+	for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
+	return diff === 0;
 }
 
 // --- JWT (HS256) via Web Crypto ---
@@ -97,6 +118,19 @@ export async function verifyJWT(token: string, secret: string): Promise<JwtPaylo
 	const parts = token.split('.');
 	if (parts.length !== 3) throw new Error('Invalid token format');
 	const [header, body, sig] = parts;
+
+	// Pin the algorithm BEFORE verifying: reject anything that is not exactly an
+	// HS256 JWT. Without this, an attacker could supply alg:"none" (or swap to a
+	// different family) and bypass signature checks.
+	let head: { alg?: string; typ?: string };
+	try {
+		head = JSON.parse(new TextDecoder().decode(b64urlDecode(header)));
+	} catch {
+		throw new Error('Invalid token header');
+	}
+	if (head.alg !== 'HS256') throw new Error('Unexpected token alg');
+	if (head.typ !== 'JWT') throw new Error('Unexpected token typ');
+
 	const key = await importHmacKey(secret);
 	const valid = await crypto.subtle.verify(
 		'HMAC',
@@ -112,9 +146,32 @@ export async function verifyJWT(token: string, secret: string): Promise<JwtPaylo
 
 // --- shared helpers used by routes/hooks ---
 
-/** Resolve the JWT secret from platform env, with a dev fallback. */
-export function getJwtSecret(env?: { JWT_SECRET?: string }): string {
-	return env?.JWT_SECRET || 'pathfinder-dev-secret-change-in-production';
+/** The public, well-known dev fallback. NEVER usable to sign in production. */
+export const DEV_JWT_SECRET = 'pathfinder-dev-secret-change-in-production';
+
+/**
+ * Resolve the JWT secret from platform env, failing CLOSED.
+ *
+ * A real `JWT_SECRET` (not the public dev string) is always accepted. The dev
+ * fallback is only allowed when running in local dev; in any other environment
+ * a missing or dev-string secret THROWS so the app never signs or verifies
+ * tokens with a publicly-known key.
+ *
+ * `isDev` defaults to Vite's `import.meta.env.DEV`; it is a parameter so tests
+ * can simulate production by passing `false`. (Note: in `wrangler pages dev`,
+ * which serves a production build, `import.meta.env.DEV` is false - local dev
+ * there must supply a real `JWT_SECRET` via .dev.vars, which it does.)
+ */
+export function getJwtSecret(
+	env?: { JWT_SECRET?: string },
+	isDev: boolean = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV
+): string {
+	const secret = env?.JWT_SECRET;
+	if (secret && secret !== DEV_JWT_SECRET) return secret;
+	if (isDev) return DEV_JWT_SECRET;
+	throw new Error(
+		'JWT_SECRET is not configured. Set a real secret (wrangler pages secret put JWT_SECRET); the dev fallback is refused outside local dev.'
+	);
 }
 
 /** RFC4122 v4 uuid (Web Crypto). */

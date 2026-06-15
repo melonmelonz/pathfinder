@@ -9,9 +9,13 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { signJWT, verifyPassword, getJwtSecret } from '$lib/server/auth';
 import { audit, SESSION_COOKIE } from '$lib/server/session';
+import { isLockedOut, recordFailure, resetFailures } from '$lib/server/ratelimit';
+import { clientIp, DECOY_HASH, DECOY_SALT, validEmail, EMAIL_MAX, PASSWORD_MAX } from '$lib/server/login';
 
 const GENERIC_ERROR = 'Invalid email or password.';
-const SESSION_TTL_SECONDS = 86400 * 7; // 7 days
+const LOCKOUT_ERROR = 'Too many attempts. Try again later.';
+// 12 hours (see /api/auth/login for rationale).
+const SESSION_TTL_SECONDS = 60 * 60 * 12;
 
 interface UserRow {
 	id: string;
@@ -21,6 +25,7 @@ interface UserRow {
 	org: string | null;
 	active: number;
 	mfa_enabled: number;
+	token_version: number;
 	password_hash: string;
 	salt: string;
 }
@@ -37,25 +42,48 @@ export const actions: Actions = {
 		if (!email || !password) {
 			return fail(400, { error: 'Email and password are required.', email });
 		}
+		// Cap input length and validate email shape before any DB/crypto work.
+		if (email.length > EMAIL_MAX || password.length > PASSWORD_MAX || !validEmail(email)) {
+			return fail(400, { error: GENERIC_ERROR, email });
+		}
 
-		const user = await env.DB.prepare('SELECT * FROM users WHERE email = ? AND active = 1')
+		const cache = env.CACHE;
+		const ip = clientIp(request);
+
+		// Lockout gate (degrades to no-op without KV).
+		if (await isLockedOut(cache, ip, email)) {
+			await audit(env, null, 'access.denied', `lockout:${email}`, request);
+			return fail(429, { error: LOCKOUT_ERROR, email });
+		}
+
+		const user = await env.DB.prepare(
+			'SELECT id, name, email, role, org, active, mfa_enabled, token_version, password_hash, salt FROM users WHERE email = ? AND active = 1'
+		)
 			.bind(email)
 			.first<UserRow>();
 
 		if (!user) {
+			// Anti-enumeration: run a real hash against the constant decoy so the
+			// timing matches the known-user path, then fail generically.
+			await verifyPassword(password, DECOY_SALT, DECOY_HASH);
+			await recordFailure(cache, ip, email);
 			await audit(env, null, 'access.denied', `login:${email}`, request);
 			return fail(401, { error: GENERIC_ERROR, email });
 		}
 
 		const valid = await verifyPassword(password, user.salt, user.password_hash);
 		if (!valid) {
+			await recordFailure(cache, ip, email);
 			await audit(env, user.id, 'access.denied', `user:${user.id}`, request);
 			return fail(401, { error: GENERIC_ERROR, email });
 		}
 
+		// Success: clear any failure counters for this IP/email.
+		await resetFailures(cache, ip, email);
+
 		const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
 		const token = await signJWT(
-			{ sub: user.id, role: user.role, email: user.email, exp },
+			{ sub: user.id, role: user.role, email: user.email, tv: user.token_version ?? 0, exp },
 			getJwtSecret(env)
 		);
 
