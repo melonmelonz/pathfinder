@@ -1,0 +1,24 @@
+name = "pathfinder"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare bindings (canonical sec 3). Uncomment and fill IDs once the
+# backend lands in Sprint 1+. Never commit real resource IDs or secrets;
+# create resources with wrangler and store IDs in the CF dashboard / .dev.vars.
+
+# D1 database (binding DB) - app state, SQLite + FTS5 search.
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "pathfinder"
+# database_id = "REPLACE_WITH_D1_ID"
+
+# R2 bucket (binding DOCUMENTS) - floorplans, SPZ/mp4 scans, master PLY cold archive.
+# [[r2_buckets]]
+# binding = "DOCUMENTS"
+# bucket_name = "pathfinder-documents"
+
+# KV namespace (binding CACHE) - sessions, rate limits, brand cache.
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "REPLACE_WITH_KV_ID"

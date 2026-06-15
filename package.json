@@ -1,0 +1,29 @@
+{
+  "name": "pathfinder",
+  "version": "0.1.0",
+  "description": "Pathfinder - white-label web platform for emergency floorplan mapping and 3D facility documentation. Open Source Community Edition.",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "wrangler pages deploy .svelte-kit/cloudflare",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@sveltejs/adapter-cloudflare": "^4.9.0",
+    "@types/node": "^22.10.5",
+    "@sveltejs/kit": "^2.15.1",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "svelte": "^5.16.0",
+    "svelte-check": "^4.1.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.99.0"
+  }
+}
