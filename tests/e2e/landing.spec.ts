@@ -9,9 +9,10 @@ test('T-1.1.1 landing page shows the brand wordmark and editions', async ({ page
 	await expect(page.getByRole('link', { name: /home/i })).toBeVisible();
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-	// Editions are mentioned (open-core split).
-	await expect(page.getByText('Open Source Community Edition')).toBeVisible();
-	await expect(page.getByText('Pathfinder Pro')).toBeVisible();
+	// Editions are mentioned (open-core split). Target the edition headings
+	// specifically (the names also appear in the explanatory note below).
+	await expect(page.getByRole('heading', { name: 'Open Source Community Edition' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Pathfinder Pro' })).toBeVisible();
 
 	await page.screenshot({ path: 'tests/e2e/__screenshots__/landing.png', fullPage: true });
 });

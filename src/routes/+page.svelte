@@ -25,9 +25,9 @@
 			<h3>Open Source Community Edition</h3>
 			<p class="price">Free, self-hosted</p>
 			<ul>
-				<li>Full white-label brand layer</li>
 				<li>2D floorplan annotation and NFPA 170 map export</li>
-				<li>Org hierarchy, projects, and review workflow</li>
+				<li>mp4 3D scan walkthrough playback</li>
+				<li>Projects and review workflow, single brand</li>
 				<li>Deploy to your own Cloudflare account</li>
 			</ul>
 		</article>
@@ -36,9 +36,9 @@
 			<p class="price">Hosted and supported</p>
 			<ul>
 				<li>Everything in Community Edition</li>
-				<li>Managed hosting, backups, and SLAs</li>
-				<li>3D splat scan viewer and scan library</li>
-				<li>Compliance reporting and priority support</li>
+				<li>White-label multi-brand and district hierarchy</li>
+				<li>Interactive 3D splat viewer, measurement, scan library</li>
+				<li>Compliance exports, SSO, and priority support</li>
 			</ul>
 		</article>
 	</div>

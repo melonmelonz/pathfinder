@@ -20,6 +20,16 @@ It is a ground-up SvelteKit rewrite of the original ELS911 portal, keeping the b
 annotation and NFPA map-export engines and adding 3D scans, a multi-school hierarchy, collaboration,
 global search, and a drop-in white-label brand layer.
 
+## Screenshots
+
+The S1 foundation, deployed and brand-themed. These images are produced by the
+Playwright suite (`npm run test:e2e`) and live in
+[`tests/e2e/__screenshots__/`](./tests/e2e/__screenshots__/) - regenerated on every run.
+
+![Pathfinder landing page](./tests/e2e/__screenshots__/landing.png)
+
+![Pathfinder login](./tests/e2e/__screenshots__/login.png)
+
 ## Editions
 
 Pathfinder is **open core**.
@@ -89,7 +99,17 @@ contributor (human or AI) follows, and [`CONTRIBUTING.md`](./CONTRIBUTING.md) to
 | [Editions & Integrations](./docs/06-editions-and-integrations.md) | Open-core model + third-party services |
 | [Research](./docs/research/) | Competitive, compliance, 3D, and UX briefs (cited) |
 
-Polished PDFs of these live in [`docs/pdf/`](./docs/pdf/).
+### Polished PDFs (shareable)
+
+Branded, print-ready PDFs of every document live in [`docs/pdf/`](./docs/pdf/) -
+rebuild any time with `node docs/pdf/build.mjs`:
+
+- [Specification](./docs/pdf/Pathfinder-Specification.pdf) - the full product + technical spec
+- [Sprint Plan](./docs/pdf/Pathfinder-Sprint-Plan.pdf) - the delivery roadmap (separate document)
+- [User Stories](./docs/pdf/Pathfinder-User-Stories.pdf)
+- [Acceptance Criteria](./docs/pdf/Pathfinder-Acceptance-Criteria.pdf)
+- [TDD Plan](./docs/pdf/Pathfinder-TDD-Plan.pdf)
+- [Editions & Integrations](./docs/pdf/Pathfinder-Editions-Integrations.pdf)
 
 ## Security
 
