@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document | 05 - Sprint Plan / Delivery Roadmap |
-| Version | 0.1 |
+| Version | 0.2 |
 | Date | 2026-06-15 |
-| Status | Draft |
+| Status | Draft (one-week delivery revision) |
 | Owner | Pathfinder LiDAR Solutions |
 | Source of truth | `docs/00-canonical-context.md` (epics E1-E14, sprint map S0-S7, stack decisions) |
 | Audience | Client stakeholders, delivery team, reviewers |
@@ -27,10 +27,16 @@ S0 as Complete (inherited) and S1-S7 as Planned is the honest version of that:
 the foundation is real and demonstrable today, and the plan from here is
 sequenced to de-risk the hardest work early.
 
+This is an aggressive one-week delivery plan: the per-sprint scope (S0-S7,
+epics, deliverables) is unchanged from prior framings and only the time has been
+compressed, mapping each sprint to a single focused build-day across one week
+(Monday to the following Monday).
+
 ### Methodology
 
-- **Agile, two-week sprints.** Each sprint closes with a client-facing review
-  and a team retrospective.
+- **Agile, a single one-week delivery sprint (Monday to Monday).** One focused
+  build-day per workstream, TDD-gated. The week closes with a client-facing
+  launch/handoff and a single retrospective rather than a per-sprint cadence.
 - **TDD-gated per epic E14.** Every acceptance criterion (AC) is proven by a
   failing test first (Vitest for engine and unit logic, Playwright for end-to-end
   flows and screenshot capture). No story is Done until its ACs pass and a
@@ -63,16 +69,17 @@ S1 and runs continuously through every sprint thereafter.
 
 ## 2. Roadmap at a glance
 
-| Sprint | Theme | Primary epics | Status | Headline deliverable |
-|---|---|---|---|---|
-| S0 | Baseline (retroactive) | E5, E6 (partial), E4 (partial), E2 (partial) | Complete (inherited) | v1 2D annotation engine, map/NFPA export, projects/users/roles, D1 schema |
-| S1 | Foundation | E1, E2, E14 | Planned | SvelteKit scaffold on CF, brand layer, JWT auth port, test harness, AGENTS.md |
-| S2 | Hierarchy | E3 | Planned | Org -> District -> Facility -> Building model + roll-up dashboards |
-| S3 | Engine port | E5, E6 | Planned | 2D annotation engine + map/NFPA export ported into Svelte wrappers |
-| S4 | Scan library | E7 | Planned | `media_assets` model + R2 multipart upload + point-cloud cold archive |
-| S5 | 3D viewer | E8 | Planned | mp4 walkthrough player + Spark splat viewer + 3D measurement + markers |
-| S6 | Search and collaboration | E10, E6, E9 | Planned | FTS5 global search + batch map export + comment/resolve/mention/notify |
-| S7 | Compliance, a11y, migration, launch | E11, E12, E13 | Planned | NG911 export, immutable audit, WCAG 2.1 AA, v1->v2 migration, launch |
+| Sprint | Day | Theme | Primary epics | Status | Headline deliverable |
+|---|---|---|---|---|---|
+| S0 | Before the week | Baseline (retroactive) | E5, E6 (partial), E4 (partial), E2 (partial) | Complete (inherited) | v1 2D annotation engine, map/NFPA export, projects/users/roles, D1 schema |
+| S1 | Monday | Foundation | E1, E2, E14 | Planned | SvelteKit scaffold on CF, brand layer, JWT auth port, test harness, AGENTS.md |
+| S2 | Tuesday | Hierarchy | E3 | Planned | Org -> District -> Facility -> Building model + roll-up dashboards |
+| S3 | Wednesday | Engine port | E5, E6 | Planned | 2D annotation engine + map/NFPA export ported into Svelte wrappers |
+| S4 | Thursday | Scan library | E7 | Planned | `media_assets` model + R2 multipart upload + point-cloud cold archive |
+| S5 | Friday | 3D viewer | E8 | Planned | mp4 walkthrough player + Spark splat viewer + 3D measurement + markers |
+| S6 | Saturday | Search and collaboration | E10, E6, E9 | Planned | FTS5 global search + batch map export + comment/resolve/mention/notify |
+| S7 | Sunday | Compliance, a11y, migration, launch | E11, E12, E13 | Planned | NG911 export, immutable audit, WCAG 2.1 AA, v1->v2 migration, launch |
+| Launch | Monday (following) | Launch / handoff | - | Planned | Production launch and client handoff of the completed S1-S7 build |
 
 ---
 
@@ -81,22 +88,24 @@ S1 and runs continuously through every sprint thereafter.
 These are stated as assumptions and should be revisited at each retrospective.
 
 - **Team size:** solo or small team (one to three engineers). Velocity figures
-  below are illustrative, not committed; they exist to size sprints relative to
-  each other, not to promise a date.
-- **Cadence:** two-week sprints, start mid-June 2026. One client review and one
-  retrospective per sprint.
-- **TDD discipline:** tests are written before implementation. This front-loads
-  cost in each sprint and is the reason engine-heavy sprints (S3, S5) are not
-  also asked to carry large new surface area.
-- **Continuous overhead:** roughly 15-20 percent of each sprint is reserved for
-  the cross-sprint workstreams in Section 6 (CI, accessibility passes, security
-  review, documentation). This is not free time; it is planned.
+  below are illustrative, not committed; they exist to size the build-days
+  relative to each other, not to promise a date.
+- **Cadence:** one week, Monday to the following Monday (eight calendar days),
+  start mid-June 2026. Each of S1-S7 is one intense, focused build-day
+  (S1=Monday through S7=Sunday); the following Monday is launch/handoff. A single
+  client review and retrospective close the week rather than a per-sprint loop.
+- **TDD discipline:** tests are written before implementation. Within each
+  single build-day this front-loads cost and is the reason engine-heavy days
+  (S3 Wednesday, S5 Friday) are not also asked to carry large new surface area.
+- **Continuous overhead:** roughly 15-20 percent of each build-day is reserved
+  for the cross-sprint workstreams in Section 6 (CI, accessibility passes,
+  security review, documentation). This is not free time; it is planned.
 - **Deploy target:** every sprint deploys to `pathfinder.pages.dev` via
   `wrangler pages deploy` (direct push; git push does not publish). The test
   project is isolated from els911-portal production.
 - **Definition of velocity here:** "one vertical slice" means a story whose ACs
   pass end to end, including UI, server route, and persistence, with a captured
-  Playwright screenshot. Sprints are sized at three to six such slices.
+  Playwright screenshot. Each build-day is sized at three to six such slices.
 
 ---
 
@@ -507,22 +516,25 @@ continuous-overhead reserve from Section 3.
 
 ## 6. Milestones and suggested timeline
 
-Relative timeline only. Start is mid-June 2026; no calendar dates beyond that are
-invented. Each sprint is two weeks.
+Relative timeline only. The week runs Monday to the following Monday (eight
+calendar days); relative day names are used and no specific calendar dates are
+invented. Each sprint is one focused build-day.
 
-| Milestone | Sprint(s) | Relative timing |
+| Milestone | Sprint(s) | Relative day |
 |---|---|---|
-| Baseline documented (inherited) | S0 | Complete before start |
-| Foundation live on CF, brand swap demo | S1 | Weeks 1-2 |
-| Hierarchy and dashboards navigable | S2 | Weeks 3-4 |
-| 2D engine ported, parity with v1 | S3 | Weeks 5-6 |
-| Scan library and large-file upload | S4 | Weeks 7-8 |
-| 3D splat viewer with measurement | S5 | Weeks 9-10 |
-| Search and collaboration loop | S6 | Weeks 11-12 |
-| Compliance, a11y, migration, launch | S7 | Weeks 13-14 |
+| Baseline documented (inherited) | S0 | Before the week (complete) |
+| Foundation live on CF, brand swap demo | S1 | Monday |
+| Hierarchy and dashboards navigable | S2 | Tuesday |
+| 2D engine ported, parity with v1 | S3 | Wednesday |
+| Scan library and large-file upload | S4 | Thursday |
+| 3D splat viewer with measurement | S5 | Friday |
+| Search and collaboration loop | S6 | Saturday |
+| Compliance, a11y, migration, launch | S7 | Sunday |
+| Production launch and client handoff | Launch | Monday (following) |
 
-Major checkpoints: end of S3 (core 2D value re-established in v2), end of S5
-(3D differentiator demonstrable), end of S7 (procurement-grade launch).
+Major checkpoints: end of S3 (Wednesday - core 2D value re-established in v2),
+end of S5 (Friday - 3D differentiator demonstrable), end of S7 (Sunday -
+procurement-grade build complete), launch the following Monday.
 
 ---
 
@@ -534,7 +546,7 @@ Major checkpoints: end of S3 (core 2D value re-established in v2), end of S5
 | Splat performance on field devices | Medium | High | Target WebGL2 not WebGPU; ship SPZ (~90 percent smaller); Spark 2.0 streaming LOD; never serve raw PLY; device-profile perf check in S5 | 3D lead |
 | Large-file upload reliability | Medium | Medium | R2 multipart with resumability; size validation; explicit interrupted-upload tests; storage-tier routing test | Backend lead |
 | Compliance / accessibility gaps | Medium | High | WCAG 2.1 AA and NENA conformance as launch gates; per-sprint a11y; VPAT in S7; non-visual map alternatives; treat any single gap as procurement-disqualifying | Compliance/a11y lead |
-| Scope creep | High | Medium | Fixed two-week sprints; scope frozen to in-scope stories; extras pushed to backlog; review/retro discipline; fewer clarifying detours | Delivery lead |
+| Scope creep | High | Medium | Fixed one focused build-day per sprint across the Monday-to-Monday week; scope frozen to in-scope stories; extras pushed to backlog; end-of-week review/retro discipline; fewer clarifying detours | Delivery lead |
 | Data migration (v1 -> v2) | Medium | High | Dry-run against a copy; row-count and FK reconciliation; zero-orphan check; rollback plan; migration rehearsed in S7 before cutover | Backend lead |
 | Brand-token leakage (hard-coded color) | Low | Medium | Lint/test fails on literal hex in components; tokens-only rule from E1 | Frontend lead |
 | Auth port divergence from v1 | Low | High | Port exact HS256/PBKDF2 parameters; test against known v1 tokens | Backend lead |
@@ -567,3 +579,4 @@ can see the trajectory without it inflating the committed plan.
 | Version | Date | Author | Notes |
 |---|---|---|---|
 | 0.1 | 2026-06-15 | Pathfinder LiDAR Solutions | Initial draft; S0 documented as inherited baseline, S1-S7 planned forward build |
+| 0.2 | 2026-06-15 | Pathfinder LiDAR Solutions | Compressed timeline to a single one-week delivery sprint (Monday to Monday); per-sprint scope unchanged, only the cadence reframed - S1=Mon, S2=Tue, S3=Wed, S4=Thu, S5=Fri, S6=Sat, S7=Sun, launch the following Monday |
