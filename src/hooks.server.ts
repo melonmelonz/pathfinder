@@ -13,7 +13,7 @@ import {
 } from '$lib/server/session';
 
 /** Route prefixes that require an authenticated session. */
-const PROTECTED_PREFIXES = ['/dashboard'];
+const PROTECTED_PREFIXES = ['/dashboard', '/districts', '/facilities', '/buildings'];
 
 /**
  * Response-header Content-Security-Policy. Complements the document <meta> CSP

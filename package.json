@@ -15,7 +15,8 @@
     "db:migrate:local": "wrangler d1 migrations apply pathfinder --local",
     "db:migrate": "wrangler d1 migrations apply pathfinder --remote",
     "db:seed:local": "node scripts/seed-dev.mjs > .wrangler/seed.sql && wrangler d1 execute pathfinder --local --file=.wrangler/seed.sql",
-    "e2e:serve": "npm run build && npm run db:migrate:local && npm run db:seed:local && wrangler pages dev .svelte-kit/cloudflare --port 4173 --local --d1 DB=33c6c16e-5849-4aec-8afa-49ee6fdf87d7"
+    "db:seed:hierarchy:local": "node scripts/seed-hierarchy.mjs > .wrangler/seed-hierarchy.sql && wrangler d1 execute pathfinder --local --file=.wrangler/seed-hierarchy.sql",
+    "e2e:serve": "npm run build && npm run db:migrate:local && npm run db:seed:local && npm run db:seed:hierarchy:local && wrangler pages dev .svelte-kit/cloudflare --port 4173 --local --d1 DB=33c6c16e-5849-4aec-8afa-49ee6fdf87d7"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",

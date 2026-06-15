@@ -1,0 +1,161 @@
+<script lang="ts">
+	import Breadcrumbs, { type Crumb } from '$lib/components/Breadcrumbs.svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+	const building = $derived(data.building);
+	const projects = $derived(data.projects);
+
+	// Breadcrumb: Dashboard / [facility?] / [building-switcher]. The building
+	// segment lists sibling buildings under the same facility - the canonical
+	// switcher example (AC-3.2.1 / AC-3.2.2, research/04).
+	const crumbs = $derived<Crumb[]>(
+		[
+			{ label: 'Dashboard', href: '/dashboard' },
+			data.facility
+				? { label: data.facility.name, href: `/facilities/${data.facility.id}` }
+				: null,
+			{
+				label: building.name,
+				href: `/buildings/${building.id}`,
+				siblings: data.siblings.map((b) => ({
+					id: b.id,
+					name: b.name,
+					href: `/buildings/${b.id}`
+				}))
+			}
+		].filter(Boolean) as Crumb[]
+	);
+
+	const statusLabel: Record<string, string> = {
+		draft: 'Draft',
+		in_review: 'In review',
+		approved: 'Approved',
+		archived: 'Archived'
+	};
+</script>
+
+<Breadcrumbs {crumbs} />
+
+<section class="entity">
+	<header>
+		<p class="eyebrow">Building</p>
+		<h1>{building.name}</h1>
+		<p class="muted">{building.floors} floor{building.floors === 1 ? '' : 's'}</p>
+	</header>
+
+	<h2>Projects</h2>
+	{#if projects.length > 0}
+		<ul class="list" data-testid="project-list">
+			{#each projects as p (p.id)}
+				<li>
+					<div class="row">
+						<span class="row-name">{p.name}</span>
+						<span class="badge" data-status={p.status}>{statusLabel[p.status] ?? p.status}</span>
+						<span class="row-meta">{p.progress}%</span>
+					</div>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<div class="empty" data-testid="empty-state">
+			<p class="empty-title">No projects yet</p>
+			<p class="empty-body">
+				Review projects for this building will appear here once a floorplan or
+				scan is uploaded. A sample project looks like
+				<em>"Ground-floor egress review, in review, 40%"</em>.
+			</p>
+			<a class="empty-action" href="/dashboard" data-testid="empty-action"
+				>Back to dashboard</a
+			>
+		</div>
+	{/if}
+</section>
+
+<style>
+	.entity {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		margin-top: var(--space-4);
+	}
+	.eyebrow {
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		font-size: 0.75rem;
+		color: var(--brand-muted);
+	}
+	h1 {
+		font-size: 1.6rem;
+	}
+	h2 {
+		font-size: 1.1rem;
+		margin-bottom: calc(-1 * var(--space-2));
+	}
+	.list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		background: var(--brand-surface);
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		border-radius: var(--radius);
+		color: var(--brand-text);
+	}
+	.row-name {
+		font-weight: 600;
+	}
+	.row-meta {
+		color: var(--brand-muted);
+		font-size: 0.85rem;
+		margin-left: auto;
+	}
+	.badge {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding: 0.15em 0.6em;
+		border-radius: 999px;
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 50%, transparent);
+		color: var(--brand-muted);
+	}
+	.muted {
+		color: var(--brand-muted);
+	}
+	.empty {
+		background: var(--brand-surface);
+		border: 1px dashed color-mix(in srgb, var(--brand-secondary) 50%, transparent);
+		border-radius: var(--radius);
+		padding: var(--space-5);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		align-items: flex-start;
+	}
+	.empty-title {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--brand-text);
+	}
+	.empty-body {
+		color: var(--brand-muted);
+		max-width: 42rem;
+	}
+	.empty-action {
+		display: inline-block;
+		padding: var(--space-2) var(--space-3);
+		background: var(--brand-primary);
+		color: var(--brand-bg);
+		border-radius: var(--radius);
+		text-decoration: none;
+		font-weight: 600;
+	}
+</style>
