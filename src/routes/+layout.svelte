@@ -44,6 +44,9 @@
 			{#if user}
 				<a href="/search" class="btn-ghost" data-testid="nav-search">Search</a>
 				<a href="/dashboard" class="btn-ghost">Dashboard</a>
+				{#if user.role === 'admin'}
+					<a href="/admin" class="btn-ghost" data-testid="nav-admin">Admin</a>
+				{/if}
 			{:else}
 				<a href="/login" class="btn-ghost">Sign in</a>
 			{/if}

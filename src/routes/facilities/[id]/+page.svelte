@@ -31,10 +31,18 @@
 <Breadcrumbs {crumbs} />
 
 <section class="entity">
-	<header>
-		<p class="eyebrow">Facility</p>
-		<h1>{facility.name}</h1>
-		{#if facility.address}<p class="muted">{facility.address}</p>{/if}
+	<header class="fhead">
+		<div>
+			<p class="eyebrow">Facility</p>
+			<h1>{facility.name}</h1>
+			{#if facility.address}<p class="muted">{facility.address}</p>{/if}
+		</div>
+		<a
+			class="ng911"
+			href={`/api/facilities/${facility.id}/ng911`}
+			data-testid="ng911-export"
+			download
+		>Export NG911 (NENA GeoJSON)</a>
 	</header>
 
 	<ul class="cards" aria-label="Facility roll-up">
@@ -76,6 +84,23 @@
 		flex-direction: column;
 		gap: var(--space-4);
 		margin-top: var(--space-4);
+	}
+	.fhead {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: var(--space-3);
+		flex-wrap: wrap;
+	}
+	.ng911 {
+		padding: var(--space-2) var(--space-3);
+		background: var(--brand-surface);
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 45%, transparent);
+		border-radius: var(--radius);
+		text-decoration: none;
+		color: var(--brand-text);
+		font-size: 0.85rem;
+		font-weight: 600;
 	}
 	.eyebrow {
 		text-transform: uppercase;

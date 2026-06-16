@@ -27,6 +27,7 @@
 	} from '$lib/engines/map-export/markers';
 	import { buildMapPdf, exportFilename } from '$lib/engines/map-export/export-pdf';
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte';
+	import { buildMapTextAlternative } from '$lib/engines/a11y/map-text';
 
 	let { data }: { data: PageData } = $props();
 
@@ -125,6 +126,9 @@
 
 	const dims = () => ({ width: annCanvas.width, height: annCanvas.height });
 	const nums = $derived(commentNumbers(annotations));
+	// Non-visual map alternative (E12, WCAG): a text equivalent of this floor's
+	// safety features for screen-reader users.
+	const textAlt = $derived(buildMapTextAlternative(currentPage, annotations, markers));
 
 	function redraw() {
 		if (!annCanvas) return;
@@ -694,6 +698,18 @@
 				<button onclick={() => gotoPage(currentPage + 1)} disabled={currentPage >= totalPages}>Next</button>
 				<span class="count" data-testid="annotation-count">{annotations.length} annotations</span>
 			</footer>
+
+			<details class="text-alt" data-testid="text-alternative">
+				<summary>Text alternative for this floor (screen reader)</summary>
+				<div aria-live="polite">
+					{#each textAlt as section (section.heading)}
+						<h3>{section.heading}</h3>
+						<ul>
+							{#each section.items as item (item)}<li>{item}</li>{/each}
+						</ul>
+					{/each}
+				</div>
+			</details>
 		</div>
 
 		{#if !mapMode}
@@ -828,5 +844,22 @@
 	}
 	.pager .count {
 		margin-left: auto;
+	}
+	.text-alt {
+		margin-top: var(--space-3);
+		font-size: 0.85rem;
+		color: var(--brand-muted);
+	}
+	.text-alt summary {
+		cursor: pointer;
+		color: var(--brand-text);
+	}
+	.text-alt h3 {
+		font-size: 0.85rem;
+		margin-top: var(--space-2);
+		color: var(--brand-text);
+	}
+	.text-alt ul {
+		margin: 0 0 var(--space-1) var(--space-3);
 	}
 </style>
