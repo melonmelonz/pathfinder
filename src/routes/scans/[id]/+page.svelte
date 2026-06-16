@@ -104,7 +104,8 @@
 	});
 
 	onDestroy(() => {
-		cancelAnimationFrame(raf);
+		// onDestroy also runs during SSR teardown, where rAF is undefined.
+		if (typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(raf);
 		renderer?.dispose?.();
 	});
 
