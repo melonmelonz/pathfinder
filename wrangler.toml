@@ -26,4 +26,4 @@ bucket_name = "pathfinder-documents"
 # Auth degrades gracefully (no lockout) if this binding is absent locally.
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_KV_ID"
+id = "6576675808314bfd99b080eef61c6c7c"
