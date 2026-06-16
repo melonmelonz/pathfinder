@@ -18,6 +18,14 @@
 		type Annotation,
 		type AnnotationType
 	} from '$lib/engines/2d-annotate/types';
+	import {
+		MAP_TYPES,
+		reNumberMarkers,
+		hallwayColor,
+		type MapMarker,
+		type MapMarkerType
+	} from '$lib/engines/map-export/markers';
+	import { buildMapPdf, exportFilename } from '$lib/engines/map-export/export-pdf';
 
 	let { data }: { data: PageData } = $props();
 
@@ -56,7 +64,25 @@
 	let pdfDoc: any = null;
 	let pdfCanvas: HTMLCanvasElement;
 	let annCanvas: HTMLCanvasElement;
+	let mapCanvas: HTMLCanvasElement;
 	let area: HTMLDivElement;
+
+	// --- map layer (E6) ---
+	const MAP_TOOLS: { id: 'select' | MapMarkerType; key: string; label: string }[] = [
+		{ id: 'select', key: 'v', label: 'Select' },
+		{ id: 'stairs', key: 's', label: 'Stairs' },
+		{ id: 'hallway', key: 'h', label: 'Hallway' },
+		{ id: 'door', key: 'd', label: 'Door' },
+		{ id: 'elevator', key: 'e', label: 'Elevator' },
+		{ id: 'room', key: 'o', label: 'Room' }
+	];
+	let mapMode = $state(false);
+	let mapTool = $state<'select' | MapMarkerType>('stairs');
+	let markers = $state<MapMarker[]>([]);
+	let hallwayPts = $state<Array<{ nx: number; ny: number }>>([]);
+	let mapDirty = $state(false);
+	let exporting = $state(false);
+	let selectedMapId = $state<string | null>(null);
 
 	// drawing scratch
 	let drawing = false;
@@ -80,12 +106,82 @@
 		}));
 	}
 
+	function deserializeMarkers(rows: typeof data.markers): MapMarker[] {
+		return rows.map((r) => ({
+			id: r.id,
+			type: r.type as MapMarkerType,
+			label: r.label,
+			page: r.page,
+			nx: r.nx,
+			ny: r.ny,
+			labelPinned: !!r.label_pinned,
+			labelNx: r.label_nx,
+			labelNy: r.label_ny,
+			points: r.points ? JSON.parse(r.points) : undefined,
+			extraLabels: r.extra_labels ? JSON.parse(r.extra_labels) : undefined
+		}));
+	}
+
 	const dims = () => ({ width: annCanvas.width, height: annCanvas.height });
 	const nums = $derived(commentNumbers(annotations));
 
 	function redraw() {
 		if (!annCanvas) return;
 		renderAnnotations(annCanvas.getContext('2d')!, annotations, currentPage, dims(), nums, selectedId);
+		renderMap();
+	}
+
+	function renderMap() {
+		if (!mapCanvas) return;
+		const ctx = mapCanvas.getContext('2d')!;
+		const cw = mapCanvas.width;
+		const ch = mapCanvas.height;
+		ctx.clearRect(0, 0, cw, ch);
+		for (const m of markers) {
+			if (m.page !== currentPage) continue;
+			const color = m.type === 'hallway' ? hallwayColor(m.label) : MAP_TYPES[m.type].color;
+			if (m.type === 'hallway' && m.points && m.points.length > 1) {
+				ctx.save();
+				ctx.strokeStyle = color;
+				ctx.lineWidth = m.id === selectedMapId ? 4 : 2.5;
+				ctx.beginPath();
+				ctx.moveTo(m.points[0].nx * cw, m.points[0].ny * ch);
+				for (const p of m.points) ctx.lineTo(p.nx * cw, p.ny * ch);
+				ctx.stroke();
+				ctx.restore();
+			}
+			drawMapChip(ctx, m.nx * cw, m.ny * ch, m.label, color, m.id === selectedMapId);
+		}
+		// in-progress hallway
+		if (hallwayPts.length) {
+			ctx.save();
+			ctx.strokeStyle = '#16A34A';
+			ctx.setLineDash([5, 4]);
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(hallwayPts[0].nx * cw, hallwayPts[0].ny * ch);
+			for (const p of hallwayPts) ctx.lineTo(p.nx * cw, p.ny * ch);
+			ctx.stroke();
+			ctx.restore();
+		}
+	}
+
+	function drawMapChip(ctx: CanvasRenderingContext2D, x: number, y: number, label: string, color: string, sel: boolean) {
+		ctx.save();
+		ctx.fillStyle = color;
+		ctx.strokeStyle = sel ? '#fff' : 'rgba(0,0,0,0.3)';
+		ctx.lineWidth = sel ? 2.5 : 1;
+		const r = 11;
+		ctx.beginPath();
+		ctx.arc(x, y, r, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.stroke();
+		ctx.fillStyle = '#fff';
+		ctx.font = '700 10px system-ui, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(label, x, y);
+		ctx.restore();
 	}
 
 	async function renderPage(n: number) {
@@ -96,7 +192,7 @@
 		}
 		const page = await pdfDoc.getPage(n);
 		const viewport = page.getViewport({ scale });
-		for (const c of [pdfCanvas, annCanvas]) {
+		for (const c of [pdfCanvas, annCanvas, mapCanvas]) {
 			c.width = viewport.width;
 			c.height = viewport.height;
 		}
@@ -107,7 +203,7 @@
 	function drawDemo() {
 		const w = Math.max((area?.clientWidth ?? 900) - 40, 320);
 		const h = Math.round(w * 0.72);
-		for (const c of [pdfCanvas, annCanvas]) {
+		for (const c of [pdfCanvas, annCanvas, mapCanvas]) {
 			c.width = w;
 			c.height = h;
 		}
@@ -130,6 +226,7 @@
 
 	onMount(async () => {
 		annotations = deserialize(data.annotations);
+		markers = reNumberMarkers(deserializeMarkers(data.markers));
 		try {
 			const pdfjs = await import('pdfjs-dist');
 			pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -289,6 +386,129 @@
 		URL.revokeObjectURL(url);
 	}
 
+	// --- map layer interaction (E6) ---
+	function mapId() {
+		return 'mk' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+	}
+
+	function onMapPointerDown(e: PointerEvent) {
+		if (!data.canEdit) return;
+		const p = screenToCanvas(e.clientX, e.clientY, mapCanvas.getBoundingClientRect(), dims());
+		const nx = p.x / mapCanvas.width;
+		const ny = p.y / mapCanvas.height;
+		if (mapTool === 'select') {
+			selectedMapId = nearestMarker(nx, ny);
+			renderMap();
+			return;
+		}
+		if (mapTool === 'hallway') {
+			hallwayPts = [...hallwayPts, { nx, ny }];
+			renderMap();
+			return;
+		}
+		// point marker
+		markers = reNumberMarkers([
+			...markers,
+			{ id: mapId(), type: mapTool, label: '', page: currentPage, nx, ny, createdAt: new Date().toISOString() }
+		]);
+		mapDirty = true;
+		renderMap();
+	}
+
+	function commitHallway() {
+		if (hallwayPts.length < 3) return;
+		const cx = hallwayPts.reduce((s, p) => s + p.nx, 0) / hallwayPts.length;
+		const cy = hallwayPts.reduce((s, p) => s + p.ny, 0) / hallwayPts.length;
+		markers = reNumberMarkers([
+			...markers,
+			{ id: mapId(), type: 'hallway', label: '', page: currentPage, nx: cx, ny: cy, points: [...hallwayPts], createdAt: new Date().toISOString() }
+		]);
+		hallwayPts = [];
+		mapDirty = true;
+		renderMap();
+	}
+
+	function nearestMarker(nx: number, ny: number): string | null {
+		let best: string | null = null;
+		let bestD = 0.03;
+		for (const m of markers) {
+			if (m.page !== currentPage) continue;
+			const d = Math.hypot(m.nx - nx, m.ny - ny);
+			if (d < bestD) {
+				bestD = d;
+				best = m.id;
+			}
+		}
+		return best;
+	}
+
+	function deleteMarker() {
+		if (!selectedMapId) return;
+		markers = reNumberMarkers(markers.filter((m) => m.id !== selectedMapId));
+		selectedMapId = null;
+		mapDirty = true;
+		renderMap();
+	}
+
+	async function saveMarkers() {
+		saving = true;
+		const payload = markers.map((m) => ({
+			id: m.id,
+			page: m.page,
+			type: m.type,
+			label: m.label,
+			labelPinned: m.labelPinned,
+			nx: m.nx,
+			ny: m.ny,
+			labelNx: m.labelNx,
+			labelNy: m.labelNy,
+			points: m.points,
+			extraLabels: m.extraLabels
+		}));
+		const res = await fetch(`/api/documents/${data.document.id}/markers`, {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ markers: payload })
+		});
+		saving = false;
+		if (res.ok) mapDirty = false;
+	}
+
+	async function exportMapPdf() {
+		exporting = true;
+		try {
+			const { default: JsPDF } = await import('jspdf');
+			// Compose the floorplan image from the pdf layer for the current page.
+			const composite = document.createElement('canvas');
+			composite.width = pdfCanvas.width;
+			composite.height = pdfCanvas.height;
+			composite.getContext('2d')!.drawImage(pdfCanvas, 0, 0);
+			const imageDataUrl = composite.toDataURL('image/jpeg', 0.95);
+			const pageMarkers = markers.filter((m) => m.page === currentPage);
+			const doc = buildMapPdf(
+				(orientation, size) => new JsPDF({ orientation, unit: 'mm', format: size }),
+				[{ page: currentPage, imageDataUrl, canvasW: pdfCanvas.width, canvasH: pdfCanvas.height, markers: pageMarkers }],
+				{},
+				markers,
+				{
+					facilityName: data.document.filename.replace(/\.[^.]+$/, ''),
+					brandName: 'Pathfinder'
+				}
+			);
+			doc.save(exportFilename(data.document.filename));
+		} finally {
+			exporting = false;
+		}
+	}
+
+	function toggleMapMode() {
+		mapMode = !mapMode;
+		selectedId = null;
+		selectedMapId = null;
+		hallwayPts = [];
+		redraw();
+	}
+
 	async function gotoPage(n: number) {
 		if (n < 1 || n > totalPages) return;
 		currentPage = n;
@@ -298,6 +518,31 @@
 	function onKey(e: KeyboardEvent) {
 		const t = e.target as HTMLElement;
 		if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+		if (mapMode) {
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+				e.preventDefault();
+				saveMarkers();
+				return;
+			}
+			if (e.key === 'Enter') {
+				commitHallway();
+				return;
+			}
+			if (e.key === 'Escape') {
+				hallwayPts = [];
+				toggleMapMode();
+				return;
+			}
+			if (e.key === 'Delete' || e.key === 'Backspace') {
+				deleteMarker();
+				return;
+			}
+			if (e.key === 'ArrowRight') gotoPage(currentPage + 1);
+			if (e.key === 'ArrowLeft') gotoPage(currentPage - 1);
+			const mt = MAP_TOOLS.find((m) => m.key === e.key.toLowerCase());
+			if (mt) mapTool = mt.id;
+			return;
+		}
 		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
 			e.preventDefault();
 			undo();
@@ -349,11 +594,19 @@
 				</button>
 			{/if}
 			<button onclick={exportJson} data-testid="export-json">Export JSON</button>
+			<button
+				class:active={mapMode}
+				onclick={toggleMapMode}
+				data-testid="map-mode-toggle">{mapMode ? 'Annotate mode' : 'Map mode'}</button
+			>
+			<button onclick={exportMapPdf} disabled={exporting} data-testid="export-map">
+				{exporting ? 'Exporting...' : 'Export NFPA map'}
+			</button>
 		</div>
 	</header>
 
 	<div class="workspace">
-		{#if data.canEdit}
+		{#if data.canEdit && !mapMode}
 			<aside class="tools" data-testid="toolbar" aria-label="Annotation tools">
 				{#each TOOLS as tl (tl.id)}
 					<button
@@ -369,6 +622,27 @@
 				</label>
 			</aside>
 		{/if}
+		{#if data.canEdit && mapMode}
+			<aside class="tools" data-testid="map-toolbar" aria-label="Map marker tools">
+				{#each MAP_TOOLS as mt (mt.id)}
+					<button
+						class:active={mapTool === mt.id}
+						onclick={() => (mapTool = mt.id)}
+						data-testid={`map-tool-${mt.id}`}
+						title={`${mt.label} (${mt.key})`}>{mt.label}</button
+					>
+				{/each}
+				{#if mapTool === 'hallway' && hallwayPts.length >= 3}
+					<button onclick={commitHallway} data-testid="close-hallway">Close polygon</button>
+				{/if}
+				<button
+					class="primary"
+					onclick={saveMarkers}
+					disabled={saving || !mapDirty}
+					data-testid="save-markers">{saving ? 'Saving...' : mapDirty ? 'Save map' : 'Saved'}</button
+				>
+			</aside>
+		{/if}
 
 		<div class="canvas-area" bind:this={area} data-testid="canvas-area">
 			<div class="canvas-stack">
@@ -376,10 +650,18 @@
 				<canvas
 					bind:this={annCanvas}
 					class="ann-layer"
+					class:hidden-layer={mapMode}
 					data-testid="annotation-canvas"
 					onpointerdown={onPointerDown}
 					onpointermove={onPointerMove}
 					onpointerup={onPointerUp}
+				></canvas>
+				<canvas
+					bind:this={mapCanvas}
+					class="ann-layer"
+					class:hidden-layer={!mapMode}
+					data-testid="map-canvas"
+					onpointerdown={onMapPointerDown}
 				></canvas>
 			</div>
 			<footer class="pager">
@@ -489,6 +771,9 @@
 		inset: 0;
 		touch-action: none;
 		cursor: crosshair;
+	}
+	.hidden-layer {
+		pointer-events: none;
 	}
 	.pager {
 		display: flex;
