@@ -84,7 +84,9 @@
 			{#each media as m (m.id)}
 				<li class="row" data-testid="media-row">
 					<span class="type">{TYPE_LABEL[m.type] ?? m.type}</span>
-					{#if m.served}
+					{#if m.served && (m.type === 'splat' || m.type === 'walkthrough_video')}
+						<a class="name" href={`/scans/${m.id}`} data-testid="media-link">{m.filename}</a>
+					{:else if m.served}
 						<a class="name" href={`/api/media/${m.id}`} data-testid="media-link">{m.filename}</a>
 					{:else}
 						<span class="name">{m.filename}</span>

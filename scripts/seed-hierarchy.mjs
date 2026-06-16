@@ -134,6 +134,21 @@ annotation('ann-wahs-rect-0000000000001', DOC_WAHS_F1, 1, 'rect', 0.15, 0.15, 0.
 marker('mk-wahs-stair-000000000001', DOC_WAHS_F1, 1, 'stairs', 'S1', 0.2, 0.8);
 marker('mk-wahs-door-0000000000001', DOC_WAHS_F1, 1, 'door', 'A', 0.6, 0.3);
 
+// Media assets (Epic E7/E8 demo). Binaries are not seeded (no real scans in a
+// public repo); the 3D viewer degrades gracefully to its "unavailable" state.
+function media(id, buildingId, type, filename, key, tier, served, version, captureDate, surveyor, floor) {
+	lines.push(
+		`INSERT INTO media_assets (id, building_id, type, filename, r2_key, storage_tier, served, version, capture_date, surveyor, floor, status)\n` +
+			`VALUES ('${id}', '${buildingId}', '${type}', '${esc(filename)}', '${esc(key)}', '${tier}', ${served}, ${version}, '${captureDate}', '${esc(surveyor)}', ${floor}, 'active')\n` +
+			`ON CONFLICT(id) DO UPDATE SET type=excluded.type, filename=excluded.filename, r2_key=excluded.r2_key,\n` +
+			`  storage_tier=excluded.storage_tier, served=excluded.served, version=excluded.version,\n` +
+			`  capture_date=excluded.capture_date, surveyor=excluded.surveyor, floor=excluded.floor;`
+	);
+}
+media('med-wahs-splat-f1-00000001', B_WAHS_MAIN, 'splat', 'WAHS Main Floor 1.spz', 'hot/splat/bld-wahs-main/v1/wahs_f1.spz', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
+media('med-wahs-video-f1-0000001', B_WAHS_MAIN, 'walkthrough_video', 'WAHS Main Floor 1 walkthrough.mp4', 'hot/video/bld-wahs-main/v1/wahs_f1.mp4', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
+media('med-wahs-ply-f1-000000001', B_WAHS_MAIN, 'point_cloud', 'WAHS Main Floor 1 master.ply', 'cold/pointcloud/bld-wahs-main/v1/wahs_f1.ply', 'cold', 0, 1, '2026-05-12', 'J. Porterfield', 1);
+
 // --- A second org so the client user sees exactly one (org-scoping demo) ---
 const ORG_NORTH = 'org-northgate-0000-0000-000000000001';
 org(ORG_NORTH, 'Northgate School District', 'school');
