@@ -1,0 +1,50 @@
+# Continuous integration (Epic E14 - Quality & Delivery Harness).
+# Runs the type/diagnostics gate and the Vitest unit suite on every push/PR,
+# and the Playwright E2E suite (against a local wrangler pages dev with a
+# local D1 + seed) as a separate job. Deploys are NOT git-triggered: this is a
+# direct-deploy project (wrangler pages deploy), so CI only verifies.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit:
+    name: check + unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:unit
+
+  e2e:
+    name: e2e (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # e2e:serve builds, applies the local D1 migrations, seeds, and serves via
+      # wrangler pages dev --local (no Cloudflare credentials required).
+      - run: npm run test:e2e
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

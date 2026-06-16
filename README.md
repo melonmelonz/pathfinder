@@ -7,7 +7,7 @@
 *A platform by [Pathfinder LiDAR Solutions](https://pathfinder-lidar.pages.dev).*
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3f6e98)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-50%20unit%20%2B%206%20e2e%20passing-2e8b57)](#testing-tdd)
+[![Tests](https://img.shields.io/badge/tests-122%20unit%20%2B%2018%20e2e%20passing-2e8b57)](#testing-tdd)
 [![Stack](https://img.shields.io/badge/SvelteKit-Cloudflare-6fa8d4)](#architecture)
 [![3D](https://img.shields.io/badge/3D-Gaussian%20Splats%20(SPZ)-a9cce3)](#3d-scans)
 [![Edition](https://img.shields.io/badge/model-open%20core-c4e2f5)](#editions)
@@ -76,16 +76,16 @@ Fourteen epics define the product. Status reflects what is built in this repo to
 | E1 White-label brand layer | Drop-in brand profiles; token-driven theming; Pathfinder + ELS911 profiles | Built |
 | E2 Identity, roles and access | JWT + API keys; RBAC admin/staff/client; audit log; hardened auth | Built |
 | E3 Org hierarchy and dashboards | Org > District > Facility > Building; roll-ups; breadcrumb switchers | Built |
-| E4 Project and review workflow | Projects, status, progress, members; version loop; approvals | Planned |
-| E5 2D floorplan annotation engine | Ported PDF.js + canvas; 12+ tools; JSON export | Planned (port) |
-| E6 Safety mapping and NFPA export | NFPA 170 symbol library; legend autofit; batch PDF; z-axis floor labels | Planned |
-| E7 Unified scan library and media | media_assets; versioning; R2 multipart upload; cold archive | Planned |
-| E8 3D scan viewer | mp4 + Spark splat viewer; 3D measurement; anchored markers; floor switching | Planned |
-| E9 Collaboration | Anchored comments; resolve; @mentions; activity feed; batched email; share links | Planned |
-| E10 Global search | FTS5 across facilities/buildings/projects/documents/markers | Planned |
-| E11 Compliance and trust | NG911/NENA GeoJSON export; immutable audit; FERPA/DPA; trust page | Planned |
-| E12 Accessibility | WCAG 2.1 AA; keyboard nav; screen-reader labels; non-visual map alternative | Ongoing |
-| E13 Admin and platform ops | User + API-key management; audit viewer; settings; observability | Planned |
+| E4 Project and review workflow | Projects, status, progress, members; version loop; approvals | Partial (projects + status) |
+| E5 2D floorplan annotation engine | Ported PDF.js + canvas; 12 tools; JSON export | Built |
+| E6 Safety mapping and NFPA export | NFPA symbol library; legend autofit; batch PDF; z-axis floor labels | Built |
+| E7 Unified scan library and media | media_assets; versioning; R2 multipart upload; cold archive | Built |
+| E8 3D scan viewer | mp4 + Spark splat viewer; 3D measurement; anchored markers; floor switching | Built |
+| E9 Collaboration | Anchored comments; resolve; @mentions; activity feed; batched email; share links | Built |
+| E10 Global search | FTS5 across facilities/buildings/projects/documents/markers | Built |
+| E11 Compliance and trust | NG911/NENA GeoJSON export; immutable audit; FERPA/DPA; trust page | Built (export + audit) |
+| E12 Accessibility | WCAG 2.1 AA; keyboard nav; screen-reader labels; non-visual map alternative; VPAT | Built (VPAT self-assessment) |
+| E13 Admin and platform ops | User + API-key management; audit viewer; settings; observability | Built (Sentry pending) |
 | E14 Quality and delivery harness | TDD: Vitest + Playwright screenshots; CI; deploy to CF | Built |
 
 <details>
@@ -199,7 +199,7 @@ production. The app fails closed if a real `JWT_SECRET` is not set in production
 Pathfinder is **test-first**. Every acceptance criterion in
 [`docs/03-acceptance-criteria.md`](./docs/03-acceptance-criteria.md) maps to a test; user-visible
 behavior is verified with Playwright screenshots committed to the repo. Current suite:
-**50 unit + 6 e2e passing**. The mapping from criteria to test-writing prompts is the
+**122 unit + 18 e2e passing**. The mapping from criteria to test-writing prompts is the
 [TDD Plan](./docs/04-tdd-plan.md) ([PDF](./docs/pdf/Pathfinder-TDD-Plan.pdf)). Rules every
 contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
 
@@ -213,12 +213,12 @@ sprint is unchanged from the full plan, only compressed in time.
 | (before) | S0 | Inherited v1 engines + schema baseline | Complete (inherited) |
 | Monday | S1 | Foundation: scaffold, brand layer, auth, test harness | Complete |
 | Tuesday | S2 | Org hierarchy + roll-up dashboards | Complete |
-| Wednesday | S3 | Engine port: 2D annotation + map/NFPA export | Planned |
-| Thursday | S4 | Unified scan library + R2 multipart upload | Planned |
-| Friday | S5 | 3D viewer: mp4 + Spark splat + measurement + 3D markers | Planned |
-| Saturday | S6 | Global search + batch export + collaboration | Planned |
-| Sunday | S7 | Compliance, accessibility, migration, launch | Planned |
-| (next) Monday | - | Launch / handoff | Planned |
+| Wednesday | S3 | Engine port: 2D annotation + map/NFPA export | Complete |
+| Thursday | S4 | Unified scan library + R2 multipart upload | Complete |
+| Friday | S5 | 3D viewer: mp4 + Spark splat + measurement + 3D markers | Complete |
+| Saturday | S6 | Global search + batch export + collaboration | Complete |
+| Sunday | S7 | Compliance, accessibility, migration, launch | Complete |
+| (next) Monday | - | Launch / handoff | Complete (deployed) |
 
 Full plan with per-sprint detail, Definition of Done, and risk register:
 [Sprint Plan](./docs/05-sprint-plan.md) ([PDF](./docs/pdf/Pathfinder-Sprint-Plan.pdf)).
