@@ -13,6 +13,7 @@ import {
 	validateName,
 	validateFloors
 } from '$lib/server/hierarchy';
+import { indexEntity } from '$lib/server/search';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const env = platform?.env;
@@ -52,5 +53,6 @@ export const POST: RequestHandler = async ({ locals, platform, request }) => {
 		floors: body.floors
 	});
 	await audit(env, locals.user.id, 'hierarchy.building.create', `building:${building.id}`, request);
+	await indexEntity(env, 'building', building.id, building.name, 'Building', `/buildings/${building.id}`);
 	return json({ building }, { status: 201 });
 };

@@ -7,6 +7,7 @@ import type { RequestHandler } from './$types';
 import { audit } from '$lib/server/session';
 import { listDocuments, createDocument } from '$lib/server/documents';
 import { isGlobalScope } from '$lib/server/hierarchy';
+import { indexEntity } from '$lib/server/search';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const env = platform?.env;
@@ -44,5 +45,6 @@ export const POST: RequestHandler = async ({ locals, platform, request }) => {
 		uploaded_by: locals.user.id
 	});
 	await audit(env, locals.user.id, 'document.create', `document:${doc.id}`, request);
+	await indexEntity(env, 'document', doc.id, doc.filename, 'Floorplan', `/documents/${doc.id}`);
 	return json({ document: doc }, { status: 201 });
 };

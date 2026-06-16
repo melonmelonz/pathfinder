@@ -1,9 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const user = $derived(data.user);
+
+	// Activity feed (Epic E9). Staff/admin see the global feed; clients get none.
+	interface Activity { id: string; action: string; summary: string | null; actor_name?: string | null; created_at: string; }
+	let activity = $state<Activity[]>([]);
+	onMount(async () => {
+		const res = await fetch('/api/activity');
+		if (res.ok) activity = ((await res.json()) as { activity: Activity[] }).activity;
+	});
 	const counts = $derived(data.counts);
 	const facilities = $derived(data.facilities);
 	const districts = $derived(data.districts);
@@ -45,6 +54,20 @@
 			{signingOut ? 'Signing out...' : 'Sign out'}
 		</button>
 	</header>
+
+	{#if activity.length > 0}
+		<h2 class="section-title">Recent activity</h2>
+		<ul class="list" data-testid="activity-feed">
+			{#each activity.slice(0, 8) as a (a.id)}
+				<li>
+					<div class="row">
+						<span class="row-name">{a.summary ?? a.action}</span>
+						<span class="row-meta">{a.actor_name ?? 'system'} - {a.created_at}</span>
+					</div>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
 	<h2 class="section-title">Roll-up</h2>
 	<ul class="cards" data-testid="rollup-cards" aria-label="Hierarchy roll-up counts">

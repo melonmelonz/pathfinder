@@ -149,6 +149,25 @@ media('med-wahs-splat-f1-00000001', B_WAHS_MAIN, 'splat', 'WAHS Main Floor 1.spz
 media('med-wahs-video-f1-0000001', B_WAHS_MAIN, 'walkthrough_video', 'WAHS Main Floor 1 walkthrough.mp4', 'hot/video/bld-wahs-main/v1/wahs_f1.mp4', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
 media('med-wahs-ply-f1-000000001', B_WAHS_MAIN, 'point_cloud', 'WAHS Main Floor 1 master.ply', 'cold/pointcloud/bld-wahs-main/v1/wahs_f1.ply', 'cold', 0, 1, '2026-05-12', 'J. Porterfield', 1);
 
+// --- Search index seed (Epic E10) so /search returns hits without a manual
+//     reindex. Index-on-write keeps it current as entities are created. ---
+function searchRow(type, id, title, subtitle, url) {
+	lines.push(
+		`INSERT INTO search_index (entity_type, entity_id, title, subtitle, url)\n` +
+			`VALUES ('${type}', '${id}', '${esc(title)}', '${esc(subtitle)}', '${esc(url)}');`
+	);
+}
+// Rebuild the demo rows idempotently: clear any prior seed of these ids first.
+lines.push(`DELETE FROM search_index WHERE entity_type IN ('facility','building','project','document','marker');`);
+searchRow('facility', FAC_WAHS, 'Wellsboro Area High School', 'school', `/facilities/${FAC_WAHS}`);
+searchRow('facility', FAC_DGE, 'Don Gill Elementary School', 'school', `/facilities/${FAC_DGE}`);
+searchRow('facility', FAC_911, 'Tioga County 911 Center', '911_center', `/facilities/${FAC_911}`);
+searchRow('building', B_WAHS_MAIN, 'Main Building', 'Building', `/buildings/${B_WAHS_MAIN}`);
+searchRow('building', B_WAHS_GYM, 'Gymnasium', 'Building', `/buildings/${B_WAHS_GYM}`);
+searchRow('document', DOC_WAHS_F1, 'WAHS Main - Floor 1.pdf', 'Floorplan', `/documents/${DOC_WAHS_F1}`);
+searchRow('marker', 'mk-wahs-stair-000000000001', 'S1', 'stairs marker', `/documents/${DOC_WAHS_F1}`);
+searchRow('marker', 'mk-wahs-door-0000000000001', 'A', 'door marker', `/documents/${DOC_WAHS_F1}`);
+
 // --- A second org so the client user sees exactly one (org-scoping demo) ---
 const ORG_NORTH = 'org-northgate-0000-0000-000000000001';
 org(ORG_NORTH, 'Northgate School District', 'school');

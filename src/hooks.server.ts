@@ -12,8 +12,18 @@ import {
 	bearerFromRequest
 } from '$lib/server/session';
 
-/** Route prefixes that require an authenticated session. */
-const PROTECTED_PREFIXES = ['/dashboard', '/districts', '/facilities', '/buildings'];
+/** Route prefixes that require an authenticated session. (/share is public:
+ *  a share token is its own bearer of read-only access.) */
+const PROTECTED_PREFIXES = [
+	'/dashboard',
+	'/districts',
+	'/facilities',
+	'/buildings',
+	'/documents',
+	'/scans',
+	'/search',
+	'/admin'
+];
 
 /**
  * Response-header Content-Security-Policy. Complements the document <meta> CSP

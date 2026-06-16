@@ -1,12 +1,54 @@
 <script lang="ts">
 	import Breadcrumbs, { type Crumb } from '$lib/components/Breadcrumbs.svelte';
 	import MediaLibrary from '$lib/components/MediaLibrary.svelte';
+	import { exportDocMap } from '$lib/engines/map-export/export-client';
+	import type { MapMarker } from '$lib/engines/map-export/markers';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const building = $derived(data.building);
 	const projects = $derived(data.projects);
 	const documents = $derived(data.documents);
+
+	// Batch NFPA export (Epic E6): enqueue a tracked job, then render+download an
+	// NFPA map for every floorplan in this building, reporting progress back.
+	let batchBusy = $state(false);
+	let batchProgress = $state('');
+	async function batchExport() {
+		if (!documents.length) return;
+		batchBusy = true;
+		const jobRes = await fetch('/api/export-jobs', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ scopeType: 'building', scopeId: building.id, total: documents.length })
+		});
+		const jobId = jobRes.ok ? ((await jobRes.json()) as { job: { id: string } }).job.id : null;
+		let done = 0;
+		for (const d of documents) {
+			batchProgress = `Exporting ${done + 1} of ${documents.length}...`;
+			const mRes = await fetch(`/api/documents/${d.id}/markers`);
+			const markers: MapMarker[] = mRes.ok
+				? (((await mRes.json()) as { markers: Array<Record<string, unknown>> }).markers.map((m) => ({
+						id: m.id,
+						type: m.type,
+						label: m.label,
+						page: m.page,
+						nx: m.nx,
+						ny: m.ny
+					})) as MapMarker[])
+				: [];
+			await exportDocMap({ docId: d.id, filename: d.filename, fileUrl: `/api/documents/${d.id}/file`, markers });
+			done++;
+			if (jobId)
+				await fetch(`/api/export-jobs/${jobId}`, {
+					method: 'PATCH',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ status: done === documents.length ? 'done' : 'running', done })
+				});
+		}
+		batchProgress = `Exported ${done} map${done === 1 ? '' : 's'}.`;
+		batchBusy = false;
+	}
 
 	// Breadcrumb: Dashboard / [facility?] / [building-switcher]. The building
 	// segment lists sibling buildings under the same facility - the canonical
@@ -46,7 +88,15 @@
 		<p class="muted">{building.floors} floor{building.floors === 1 ? '' : 's'}</p>
 	</header>
 
-	<h2>Floorplans</h2>
+	<div class="floor-head">
+		<h2>Floorplans</h2>
+		{#if data.canEdit && documents.length > 0}
+			<button class="batch" onclick={batchExport} disabled={batchBusy} data-testid="batch-export">
+				{batchBusy ? batchProgress || 'Exporting...' : 'Batch NFPA export'}
+			</button>
+		{/if}
+	</div>
+	{#if batchProgress && !batchBusy}<p class="muted" data-testid="batch-result">{batchProgress}</p>{/if}
 	{#if documents.length > 0}
 		<ul class="list" data-testid="document-list">
 			{#each documents as d (d.id)}
@@ -111,6 +161,26 @@
 	h2 {
 		font-size: 1.1rem;
 		margin-bottom: calc(-1 * var(--space-2));
+	}
+	.floor-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+	.batch {
+		padding: var(--space-1) var(--space-3);
+		background: var(--brand-primary);
+		color: var(--brand-bg);
+		border: none;
+		border-radius: var(--radius);
+		font-weight: 600;
+		cursor: pointer;
+		font-size: 0.85rem;
+	}
+	.batch:disabled {
+		opacity: 0.6;
+		cursor: progress;
 	}
 	.list {
 		list-style: none;

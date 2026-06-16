@@ -15,6 +15,7 @@ import {
 	validateFacilityType,
 	type FacilityType
 } from '$lib/server/hierarchy';
+import { indexEntity } from '$lib/server/search';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const env = platform?.env;
@@ -73,5 +74,6 @@ export const POST: RequestHandler = async ({ locals, platform, request }) => {
 		phone: body.phone ?? null
 	});
 	await audit(env, locals.user.id, 'hierarchy.facility.create', `facility:${facility.id}`, request);
+	await indexEntity(env, 'facility', facility.id, facility.name, facility.type ?? 'facility', `/facilities/${facility.id}`);
 	return json({ facility }, { status: 201 });
 };

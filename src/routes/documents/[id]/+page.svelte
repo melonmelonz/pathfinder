@@ -26,6 +26,7 @@
 		type MapMarkerType
 	} from '$lib/engines/map-export/markers';
 	import { buildMapPdf, exportFilename } from '$lib/engines/map-export/export-pdf';
+	import CommentsPanel from '$lib/components/CommentsPanel.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -509,6 +510,23 @@
 		redraw();
 	}
 
+	let shareUrl = $state('');
+	async function makeShareLink() {
+		const res = await fetch('/api/share', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ resourceType: 'document', resourceId: data.document.id })
+		});
+		if (res.ok) {
+			shareUrl = ((await res.json()) as { url: string }).url;
+			try {
+				await navigator.clipboard.writeText(shareUrl);
+			} catch {
+				/* clipboard may be blocked; the URL is shown regardless */
+			}
+		}
+	}
+
 	async function gotoPage(n: number) {
 		if (n < 1 || n > totalPages) return;
 		currentPage = n;
@@ -602,8 +620,14 @@
 			<button onclick={exportMapPdf} disabled={exporting} data-testid="export-map">
 				{exporting ? 'Exporting...' : 'Export NFPA map'}
 			</button>
+			{#if data.canEdit}
+				<button onclick={makeShareLink} data-testid="share-link">Share link</button>
+			{/if}
 		</div>
 	</header>
+	{#if shareUrl}
+		<p class="share-note" data-testid="share-url">Read-only link copied: <code>{shareUrl}</code></p>
+	{/if}
 
 	<div class="workspace">
 		{#if data.canEdit && !mapMode}
@@ -671,6 +695,10 @@
 				<span class="count" data-testid="annotation-count">{annotations.length} annotations</span>
 			</footer>
 		</div>
+
+		{#if !mapMode}
+			<CommentsPanel documentId={data.document.id} {selectedId} canEdit={data.canEdit} />
+		{/if}
 	</div>
 </section>
 
@@ -724,6 +752,14 @@
 	.zoom {
 		font-variant-numeric: tabular-nums;
 		color: var(--brand-muted);
+	}
+	.share-note {
+		font-size: 0.85rem;
+		color: var(--brand-muted);
+	}
+	.share-note code {
+		color: var(--brand-primary);
+		word-break: break-all;
 	}
 	.workspace {
 		display: flex;

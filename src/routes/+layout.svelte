@@ -42,6 +42,7 @@
 		</a>
 		<nav class="site-nav" aria-label="Primary">
 			{#if user}
+				<a href="/search" class="btn-ghost" data-testid="nav-search">Search</a>
 				<a href="/dashboard" class="btn-ghost">Dashboard</a>
 			{:else}
 				<a href="/login" class="btn-ghost">Sign in</a>
