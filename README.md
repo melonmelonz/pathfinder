@@ -7,7 +7,7 @@
 *A platform by [Pathfinder LiDAR Solutions](https://pathfinder-lidar.pages.dev).*
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3f6e98)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-122%20unit%20%2B%2018%20e2e%20passing-2e8b57)](#testing-tdd)
+[![Tests](https://img.shields.io/badge/tests-127%20unit%20%2B%2019%20e2e%20passing-2e8b57)](#testing-tdd)
 [![Stack](https://img.shields.io/badge/SvelteKit-Cloudflare-6fa8d4)](#architecture)
 [![3D](https://img.shields.io/badge/3D-Gaussian%20Splats%20(SPZ)-a9cce3)](#3d-scans)
 [![Edition](https://img.shields.io/badge/model-open%20core-c4e2f5)](#editions)
@@ -76,7 +76,7 @@ Fourteen epics define the product. Status reflects what is built in this repo to
 | E1 White-label brand layer | Drop-in brand profiles; token-driven theming; Pathfinder + ELS911 profiles | Built |
 | E2 Identity, roles and access | JWT + API keys; RBAC admin/staff/client; audit log; hardened auth | Built |
 | E3 Org hierarchy and dashboards | Org > District > Facility > Building; roll-ups; breadcrumb switchers | Built |
-| E4 Project and review workflow | Projects, status, progress, members; version loop; approvals | Partial (projects + status) |
+| E4 Project and review workflow | Projects, status, progress, members; review loop; approvals | Built |
 | E5 2D floorplan annotation engine | Ported PDF.js + canvas; 12 tools; JSON export | Built |
 | E6 Safety mapping and NFPA export | NFPA symbol library; legend autofit; batch PDF; z-axis floor labels | Built |
 | E7 Unified scan library and media | media_assets; versioning; R2 multipart upload; cold archive | Built |
@@ -199,7 +199,7 @@ production. The app fails closed if a real `JWT_SECRET` is not set in production
 Pathfinder is **test-first**. Every acceptance criterion in
 [`docs/03-acceptance-criteria.md`](./docs/03-acceptance-criteria.md) maps to a test; user-visible
 behavior is verified with Playwright screenshots committed to the repo. Current suite:
-**122 unit + 18 e2e passing**. The mapping from criteria to test-writing prompts is the
+**127 unit + 19 e2e passing**. The mapping from criteria to test-writing prompts is the
 [TDD Plan](./docs/04-tdd-plan.md) ([PDF](./docs/pdf/Pathfinder-TDD-Plan.pdf)). Rules every
 contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
 

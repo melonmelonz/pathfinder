@@ -3,6 +3,8 @@
 	import MediaLibrary from '$lib/components/MediaLibrary.svelte';
 	import { exportDocMap } from '$lib/engines/map-export/export-client';
 	import type { MapMarker } from '$lib/engines/map-export/markers';
+	import { availableTransitions, type ProjectStatus } from '$lib/engines/workflow/status';
+	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -48,6 +50,19 @@
 		}
 		batchProgress = `Exported ${done} map${done === 1 ? '' : 's'}.`;
 		batchBusy = false;
+	}
+
+	// Project review workflow (Epic E4): move a project along a legal status edge.
+	let transitioning = $state<string | null>(null);
+	async function transition(projectId: string, to: ProjectStatus) {
+		transitioning = projectId;
+		await fetch(`/api/projects/${projectId}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ status: to })
+		});
+		transitioning = null;
+		await invalidateAll();
 	}
 
 	// Breadcrumb: Dashboard / [facility?] / [building-switcher]. The building
@@ -121,8 +136,19 @@
 				<li>
 					<div class="row">
 						<span class="row-name">{p.name}</span>
-						<span class="badge" data-status={p.status}>{statusLabel[p.status] ?? p.status}</span>
+						<span class="badge" data-status={p.status} data-testid="project-status">{statusLabel[p.status] ?? p.status}</span>
 						<span class="row-meta">{p.progress}%</span>
+						{#if data.canEdit}
+							<span class="actions" data-testid="project-actions">
+								{#each availableTransitions(p.status as ProjectStatus) as t (t.to)}
+									<button
+										onclick={() => transition(p.id, t.to)}
+										disabled={transitioning === p.id}
+										data-testid={`transition-${t.to}`}>{t.label}</button
+									>
+								{/each}
+							</span>
+						{/if}
 					</div>
 				</li>
 			{/each}
@@ -180,6 +206,25 @@
 	}
 	.batch:disabled {
 		opacity: 0.6;
+		cursor: progress;
+	}
+	.actions {
+		margin-left: auto;
+		display: flex;
+		gap: var(--space-1);
+		flex-wrap: wrap;
+	}
+	.actions button {
+		padding: 0.1em 0.6em;
+		background: transparent;
+		color: var(--brand-text);
+		border: 1px solid var(--brand-secondary);
+		border-radius: var(--radius);
+		cursor: pointer;
+		font-size: 0.75rem;
+	}
+	.actions button:disabled {
+		opacity: 0.5;
 		cursor: progress;
 	}
 	.list {
