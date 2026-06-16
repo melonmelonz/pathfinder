@@ -28,7 +28,7 @@ declare global {
 			env?: {
 				DB: D1Database;
 				JWT_SECRET?: string;
-				// DOCUMENTS: R2Bucket;
+				DOCUMENTS?: R2Bucket;
 				CACHE?: KVNamespace;
 			};
 		}

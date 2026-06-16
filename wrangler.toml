@@ -14,10 +14,11 @@ database_name = "pathfinder"
 database_id = "33c6c16e-5849-4aec-8afa-49ee6fdf87d7"
 migrations_dir = "migrations"
 
-# R2 bucket (binding DOCUMENTS) - floorplans, SPZ/mp4 scans, master PLY cold archive.
-# [[r2_buckets]]
-# binding = "DOCUMENTS"
-# bucket_name = "pathfinder-documents"
+# R2 bucket (binding DOCUMENTS) - floorplans, SPZ/mp4 scans, master PLY cold
+# archive (Epic E7). Create with: wrangler r2 bucket create pathfinder-documents
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "pathfinder-documents"
 
 # KV namespace (binding CACHE) - sessions, login rate-limit counters, brand
 # cache. Used by src/lib/server/ratelimit.ts for per-IP / per-email failed-login

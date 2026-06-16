@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Breadcrumbs, { type Crumb } from '$lib/components/Breadcrumbs.svelte';
+	import MediaLibrary from '$lib/components/MediaLibrary.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -60,6 +61,8 @@
 	{:else}
 		<p class="muted" data-testid="no-documents">No floorplans uploaded for this building yet.</p>
 	{/if}
+
+	<MediaLibrary buildingId={building.id} media={data.media} canEdit={data.canEdit} />
 
 	<h2>Projects</h2>
 	{#if projects.length > 0}
