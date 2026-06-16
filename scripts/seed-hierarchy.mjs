@@ -99,6 +99,41 @@ project('proj-wahs-egress-000000000001', B_WAHS_MAIN, 'Egress mapping review', '
 project('proj-wahs-nfpa-0000000000001', B_WAHS_MAIN, 'NFPA 170 marker pass', 'draft', 20);
 project('proj-dge-floorplan-00000001', B_DGE_MAIN, 'Floorplan annotation', 'approved', 100);
 
+// --- Documents + annotations + map markers (Epics E5/E6 demo content) ---
+function document(id, projectId, filename, storageKey, pageCount) {
+	lines.push(
+		`INSERT INTO documents (id, project_id, filename, storage_key, page_count, doc_type, mime_type)\n` +
+			`VALUES ('${id}', '${projectId}', '${esc(filename)}', '${esc(storageKey)}', ${pageCount}, 'floorplan', 'application/pdf')\n` +
+			`ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, filename=excluded.filename,\n` +
+			`  storage_key=excluded.storage_key, page_count=excluded.page_count;`
+	);
+}
+function annotation(id, docId, page, type, nx, ny, nw, nh, color, text) {
+	const t = text === null ? 'NULL' : `'${esc(text)}'`;
+	lines.push(
+		`INSERT INTO annotations (id, document_id, page_number, type, nx, ny, nw, nh, color, text)\n` +
+			`VALUES ('${id}', '${docId}', ${page}, '${type}', ${nx}, ${ny}, ${nw}, ${nh}, '${color}', ${t})\n` +
+			`ON CONFLICT(id) DO UPDATE SET nx=excluded.nx, ny=excluded.ny, nw=excluded.nw, nh=excluded.nh,\n` +
+			`  type=excluded.type, color=excluded.color, text=excluded.text;`
+	);
+}
+function marker(id, docId, page, type, label, nx, ny) {
+	lines.push(
+		`INSERT INTO map_markers (id, doc_id, page, type, label, nx, ny)\n` +
+			`VALUES ('${id}', '${docId}', ${page}, '${type}', '${esc(label)}', ${nx}, ${ny})\n` +
+			`ON CONFLICT(id) DO UPDATE SET type=excluded.type, label=excluded.label, nx=excluded.nx, ny=excluded.ny;`
+	);
+}
+
+const DOC_WAHS_F1 = 'doc-wahs-main-f1-000000000001';
+document(DOC_WAHS_F1, 'proj-wahs-egress-000000000001', 'WAHS Main - Floor 1.pdf', 'demo/wahs-main-f1.pdf', 1);
+annotation('ann-wahs-aed-00000000000001', DOC_WAHS_F1, 1, 'aed', 0.32, 0.41, 0, 0, '#1565C0', null);
+annotation('ann-wahs-exit-0000000000001', DOC_WAHS_F1, 1, 'exit', 0.78, 0.22, 0, 0, '#059669', null);
+annotation('ann-wahs-note-0000000000001', DOC_WAHS_F1, 1, 'comment', 0.5, 0.6, 0, 0, '#B22234', 'Verify door swing direction with facility staff.');
+annotation('ann-wahs-rect-0000000000001', DOC_WAHS_F1, 1, 'rect', 0.15, 0.15, 0.2, 0.12, '#B22234', null);
+marker('mk-wahs-stair-000000000001', DOC_WAHS_F1, 1, 'stairs', 'S1', 0.2, 0.8);
+marker('mk-wahs-door-0000000000001', DOC_WAHS_F1, 1, 'door', 'A', 0.6, 0.3);
+
 // --- A second org so the client user sees exactly one (org-scoping demo) ---
 const ORG_NORTH = 'org-northgate-0000-0000-000000000001';
 org(ORG_NORTH, 'Northgate School District', 'school');

@@ -5,6 +5,7 @@
 	let { data }: { data: PageData } = $props();
 	const building = $derived(data.building);
 	const projects = $derived(data.projects);
+	const documents = $derived(data.documents);
 
 	// Breadcrumb: Dashboard / [facility?] / [building-switcher]. The building
 	// segment lists sibling buildings under the same facility - the canonical
@@ -43,6 +44,22 @@
 		<h1>{building.name}</h1>
 		<p class="muted">{building.floors} floor{building.floors === 1 ? '' : 's'}</p>
 	</header>
+
+	<h2>Floorplans</h2>
+	{#if documents.length > 0}
+		<ul class="list" data-testid="document-list">
+			{#each documents as d (d.id)}
+				<li>
+					<a class="row" href={`/documents/${d.id}`} data-testid="document-link">
+						<span class="row-name">{d.filename}</span>
+						<span class="row-meta">{d.page_count} page{d.page_count === 1 ? '' : 's'} &rarr;</span>
+					</a>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<p class="muted" data-testid="no-documents">No floorplans uploaded for this building yet.</p>
+	{/if}
 
 	<h2>Projects</h2>
 	{#if projects.length > 0}
@@ -109,6 +126,10 @@
 		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
 		border-radius: var(--radius);
 		color: var(--brand-text);
+		text-decoration: none;
+	}
+	a.row:hover {
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 	}
 	.row-name {
 		font-weight: 600;

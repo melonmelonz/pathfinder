@@ -7,6 +7,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getBuilding, getFacility, listBuildings, listProjects } from '$lib/server/hierarchy';
+import { listBuildingDocuments } from '$lib/server/documents';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const env = platform?.env;
@@ -18,10 +19,11 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 	const facility = await getFacility(env, locals.user, building.facility_id);
 
-	const [siblings, projects] = await Promise.all([
+	const [siblings, projects, documents] = await Promise.all([
 		listBuildings(env, locals.user, { facilityId: building.facility_id }),
-		listProjects(env, locals.user, { buildingId: building.id })
+		listProjects(env, locals.user, { buildingId: building.id }),
+		listBuildingDocuments(env, locals.user, building.id)
 	]);
 
-	return { building, facility, siblings, projects };
+	return { building, facility, siblings, projects, documents };
 };

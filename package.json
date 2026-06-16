@@ -21,14 +21,18 @@
   "devDependencies": {
     "@playwright/test": "^1.49.1",
     "@sveltejs/adapter-cloudflare": "^4.9.0",
-    "@types/node": "^22.10.5",
     "@sveltejs/kit": "^2.15.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@types/node": "^22.10.5",
     "svelte": "^5.16.0",
     "svelte-check": "^4.1.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vitest": "^2.1.8",
     "wrangler": "^3.99.0"
+  },
+  "dependencies": {
+    "jspdf": "^2.5.2",
+    "pdfjs-dist": "^3.11.174"
   }
 }
