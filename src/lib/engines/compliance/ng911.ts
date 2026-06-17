@@ -42,7 +42,14 @@ export interface GeoFeature {
 
 export interface FeatureCollection {
 	type: 'FeatureCollection';
-	metadata: { standard: string; generated: string; facilityId: string; note: string };
+	metadata: {
+		standard: string;
+		generated: string;
+		facilityId: string;
+		note: string;
+		missingFields: string[];
+		valid: boolean;
+	};
 	features: GeoFeature[];
 }
 
@@ -52,6 +59,16 @@ export function floorLabel(floor: number | null | undefined): string {
 	if (floor == null) return 'Unspecified floor';
 	if (floor <= 0) return floor === 0 ? 'Ground floor' : `Basement ${Math.abs(floor)}`;
 	return `Floor ${floor}`;
+}
+
+/** Required NENA civic-location fields that must be present for a dispatchable
+ *  export (AC-11.1.2). Returns the list of MISSING field names, empty if valid. */
+export function requiredFieldsMissing(facility: NenaFacility): string[] {
+	const missing: string[] = [];
+	if (!facility.address || !facility.address.trim()) missing.push('address');
+	if (!facility.zip || !facility.zip.trim()) missing.push('zip');
+	if (!facility.state || !facility.state.trim()) missing.push('state');
+	return missing;
 }
 
 /** Confidence in [0,1]: full when a coordinate is present, low when only the
@@ -118,13 +135,16 @@ export function buildNenaFeatureCollection(
 		});
 	}
 
+	const missingFields = requiredFieldsMissing(facility);
 	return {
 		type: 'FeatureCollection',
 		metadata: {
 			standard: 'NENA-STA-006 (aligned)',
 			generated: generatedAt,
 			facilityId: facility.id,
-			note: 'Geometry pending geocoding/RapidSOS integration; attributes are authoritative.'
+			note: 'Geometry pending geocoding/RapidSOS integration; attributes are authoritative.',
+			missingFields,
+			valid: missingFields.length === 0
 		},
 		features
 	};

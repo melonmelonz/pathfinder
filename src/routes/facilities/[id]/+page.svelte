@@ -2,10 +2,45 @@
 	import Breadcrumbs, { type Crumb } from '$lib/components/Breadcrumbs.svelte';
 	import type { PageData } from './$types';
 
+	import { invalidateAll } from '$app/navigation';
+
 	let { data }: { data: PageData } = $props();
 	const facility = $derived(data.facility);
 	const buildings = $derived(data.buildings);
 	const counts = $derived(data.counts);
+
+	// Compliance metadata (E11)
+	let cm = $state({
+		last_reviewed: '',
+		last_tour: '',
+		alyssas_law: false,
+		karis_law: false,
+		state_mandate: '',
+		drill_link: ''
+	});
+	$effect(() => {
+		const m = data.compliance;
+		cm = {
+			last_reviewed: m?.last_reviewed ?? '',
+			last_tour: m?.last_tour ?? '',
+			alyssas_law: !!m?.alyssas_law,
+			karis_law: !!m?.karis_law,
+			state_mandate: m?.state_mandate ?? '',
+			drill_link: m?.drill_link ?? ''
+		};
+	});
+	let savingCm = $state(false);
+	async function saveCompliance(e: Event) {
+		e.preventDefault();
+		savingCm = true;
+		await fetch(`/api/facilities/${facility.id}/compliance`, {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(cm)
+		});
+		savingCm = false;
+		await invalidateAll();
+	}
 
 	// Breadcrumb: Dashboard / [district?] / [facility-switcher]. Capped at three
 	// visible levels below the root (spec 9.3).
@@ -45,6 +80,18 @@
 		>Export NG911 (NENA GeoJSON)</a>
 	</header>
 
+	{#if data.stale}
+		<p class="flag stale" data-testid="staleness-flag">
+			This facility's map is due for re-verification (last reviewed
+			{data.compliance?.last_reviewed ?? 'never'}).
+		</p>
+	{/if}
+	{#if data.missingFields.length > 0}
+		<p class="flag missing" data-testid="missing-fields">
+			NG911 export is missing required fields: {data.missingFields.join(', ')}.
+		</p>
+	{/if}
+
 	<ul class="cards" aria-label="Facility roll-up">
 		<li class="card"><span class="count">{counts.buildings}</span><span>Buildings</span></li>
 		<li class="card"><span class="count">{counts.projects}</span><span>Projects</span></li>
@@ -76,6 +123,21 @@
 			>
 		</div>
 	{/if}
+
+	{#if data.canEdit}
+		<h2>Compliance metadata</h2>
+		<form class="compliance" onsubmit={saveCompliance} data-testid="compliance-form">
+			<label>Last reviewed <input type="date" bind:value={cm.last_reviewed} data-testid="cm-last-reviewed" /></label>
+			<label>Last responder tour <input type="date" bind:value={cm.last_tour} /></label>
+			<label class="chk"><input type="checkbox" bind:checked={cm.alyssas_law} /> Alyssa's Law</label>
+			<label class="chk"><input type="checkbox" bind:checked={cm.karis_law} /> Kari's Law</label>
+			<label>State mandate <input type="text" bind:value={cm.state_mandate} placeholder="e.g. PA Act 44" /></label>
+			<label>Drill records link <input type="url" bind:value={cm.drill_link} placeholder="https://" /></label>
+			<button type="submit" disabled={savingCm} data-testid="cm-save">{savingCm ? 'Saving...' : 'Save compliance'}</button>
+		</form>
+	{/if}
+
+	<p class="trust-link"><a href="/trust" data-testid="trust-link">View trust &amp; compliance posture</a></p>
 </section>
 
 <style>
@@ -107,6 +169,62 @@
 		letter-spacing: 0.08em;
 		font-size: 0.75rem;
 		color: var(--brand-muted);
+	}
+	.flag {
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius);
+		font-size: 0.9rem;
+	}
+	.flag.stale {
+		background: color-mix(in srgb, #d97706 18%, transparent);
+		border: 1px solid #d97706;
+	}
+	.flag.missing {
+		background: color-mix(in srgb, #b22234 15%, transparent);
+		border: 1px solid #b22234;
+	}
+	.compliance {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-3);
+		align-items: flex-end;
+		background: var(--brand-surface);
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		border-radius: var(--radius);
+		padding: var(--space-3);
+	}
+	.compliance label {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		font-size: 0.8rem;
+		color: var(--brand-muted);
+	}
+	.compliance label.chk {
+		flex-direction: row;
+		align-items: center;
+		gap: var(--space-1);
+	}
+	.compliance input[type='text'],
+	.compliance input[type='url'],
+	.compliance input[type='date'] {
+		padding: var(--space-1) var(--space-2);
+		background: var(--brand-bg);
+		color: var(--brand-text);
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
+		border-radius: var(--radius);
+	}
+	.compliance button {
+		padding: var(--space-2) var(--space-3);
+		background: var(--brand-primary);
+		color: var(--brand-bg);
+		border: none;
+		border-radius: var(--radius);
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.trust-link a {
+		color: var(--brand-primary);
 	}
 	h1 {
 		font-size: 1.6rem;

@@ -10,8 +10,12 @@ import {
 	getDistrict,
 	listBuildings,
 	listFacilities,
+	isGlobalScope,
 	rollup
 } from '$lib/server/hierarchy';
+import { getComplianceMeta } from '$lib/server/compliance';
+import { requiredFieldsMissing } from '$lib/engines/compliance/ng911';
+import { isStale } from '$lib/engines/compliance/status';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const env = platform?.env;
@@ -25,12 +29,33 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		? await getDistrict(env, locals.user, facility.district_id)
 		: null;
 
-	const [buildings, siblings, counts] = await Promise.all([
+	const [buildings, siblings, counts, compliance] = await Promise.all([
 		listBuildings(env, locals.user, { facilityId: facility.id }),
 		// Siblings: facilities under the same district (or org-wide if standalone).
 		listFacilities(env, locals.user, { districtId: facility.district_id ?? undefined }),
-		rollup(env, locals.user, { facilityId: facility.id })
+		rollup(env, locals.user, { facilityId: facility.id }),
+		getComplianceMeta(env, facility.id)
 	]);
 
-	return { facility, district, buildings, siblings, counts };
+	const missingFields = requiredFieldsMissing({
+		id: facility.id,
+		name: facility.name,
+		address: facility.address,
+		zip: facility.zip,
+		phone: facility.phone,
+		type: facility.type,
+		state: 'PA'
+	});
+
+	return {
+		facility,
+		district,
+		buildings,
+		siblings,
+		counts,
+		compliance,
+		missingFields,
+		stale: isStale(compliance?.last_reviewed ?? null, new Date().toISOString()),
+		canEdit: isGlobalScope(locals.user)
+	};
 };
