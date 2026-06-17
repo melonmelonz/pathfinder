@@ -43,24 +43,25 @@ test('AC-3.4.1 an entity with no children shows a designed empty state', async (
 	await expect(page.getByTestId('empty-action')).toBeVisible();
 });
 
-test('AC-3.5.1 starring a building persists across sessions', async ({ page, browser }) => {
+test('AC-3.5.1 starring a building persists across sessions', async ({ page, playwright, baseURL }) => {
 	await login(page);
+	// Reset to a known state so the assertion is isolated across runs.
+	await page.request.delete(`/api/buildings/${WAHS_MAIN}/favorite`);
 	await page.goto(`/buildings/${WAHS_MAIN}`);
 	const star = page.getByTestId('favorite-toggle');
-	if ((await star.textContent())?.includes('Starred')) {
-		await star.click(); // reset to unstarred for a clean assertion
-		await expect(star).toHaveText('Star');
-	}
+	await expect(star).toHaveText('Star');
+
+	// Star it through the UI.
 	await star.click();
 	await expect(star).toHaveText('Starred');
 
-	// A brand-new session (fresh cookies) sees the star persisted server-side.
-	const ctx = await browser.newContext();
-	const p2 = await ctx.newPage();
-	await login(p2);
-	await p2.goto(`/buildings/${WAHS_MAIN}`);
-	await expect(p2.getByTestId('favorite-toggle')).toHaveText('Starred');
-	await ctx.close();
+	// A brand-new session (fresh cookies, separate login) sees it persisted
+	// server-side - the durable cross-session proof.
+	const fresh = await playwright.request.newContext({ baseURL: baseURL! });
+	expect((await fresh.post('/api/auth/login', { data: ADMIN })).ok()).toBe(true);
+	const got = await (await fresh.get(`/api/buildings/${WAHS_MAIN}/favorite`)).json();
+	expect(got.favorite).toBe(true);
+	await fresh.dispose();
 });
 
 test('AC-10.1.1 search returns results across multiple entity types', async ({ page }) => {
