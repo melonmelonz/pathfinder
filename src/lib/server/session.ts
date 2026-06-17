@@ -56,6 +56,50 @@ export function bearerFromRequest(request: Request): string | null {
 	return null;
 }
 
+/** Pull an API key from X-API-Key or an Authorization: Bearer pf_... header. */
+export function apiKeyFromRequest(request: Request): string | null {
+	const x = request.headers.get('X-API-Key');
+	if (x) return x.trim();
+	const b = bearerFromRequest(request);
+	if (b && b.startsWith('pf_')) return b;
+	return null;
+}
+
+/** Hex SHA-256 of a string (Web Crypto). */
+export async function sha256Hex(input: string): Promise<string> {
+	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Resolve a raw API key into its user + scope (Epic E13). Looks the key up by
+ * SHA-256 hash; rejects revoked or expired keys. Touches last_used_at. Returns
+ * null when the key is unknown/revoked/expired or its user is inactive.
+ */
+export async function userFromApiKey(
+	rawKey: string | null,
+	env: Env
+): Promise<{ user: SessionUser; scope: 'read' | 'write' } | null> {
+	if (!rawKey) return null;
+	const hash = await sha256Hex(rawKey);
+	const row = await env.DB.prepare(
+		`SELECT k.scope, k.expires_at, k.revoked,
+		        u.id, u.name, u.email, u.role, u.org, u.active, u.mfa_enabled
+		   FROM api_keys k JOIN users u ON u.id = k.user_id
+		  WHERE k.key_hash = ?`
+	)
+		.bind(hash)
+		.first<{ scope: 'read' | 'write'; expires_at: string | null; revoked: number } & SessionUser>();
+	if (!row || row.revoked || !row.active) return null;
+	if (row.expires_at && row.expires_at < new Date().toISOString()) return null;
+	env.DB.prepare('UPDATE api_keys SET last_used_at = datetime("now") WHERE key_hash = ?')
+		.bind(hash)
+		.run()
+		.catch(() => {});
+	const { scope, expires_at: _e, revoked: _r, ...user } = row;
+	return { user, scope };
+}
+
 /**
  * Append an immutable audit entry (AC-2.4.1). Fire-and-forget: an audit write
  * failure must never break the request it records.

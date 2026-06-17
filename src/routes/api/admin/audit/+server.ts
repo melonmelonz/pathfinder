@@ -4,6 +4,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { exportAuditLog } from '$lib/server/compliance';
+import { filterAudit } from '$lib/server/admin';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const env = platform?.env;
@@ -11,7 +12,11 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	if (!locals.user) error(401, 'Not authenticated.');
 	if (locals.user.role !== 'admin') error(403, 'Admin role required.');
 
-	const rows = await exportAuditLog(env);
+	const actor = url.searchParams.get('actor') || undefined;
+	const since = url.searchParams.get('since') || undefined;
+	const until = url.searchParams.get('until') || undefined;
+	// Filtered query for the audit viewer (AC-13.3.1); full export otherwise.
+	const rows = actor || since || until ? await filterAudit(env, { actor, since, until, limit: 500 }) : await exportAuditLog(env);
 	if (url.searchParams.get('format') === 'csv') {
 		const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 		const header = 'id,user_id,action,resource,ip,created_at';

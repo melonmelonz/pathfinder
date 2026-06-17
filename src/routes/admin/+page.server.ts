@@ -3,7 +3,7 @@
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { listUsers, listApiKeys, platformStats } from '$lib/server/admin';
+import { listUsers, listApiKeys, platformStats, listSettings } from '$lib/server/admin';
 import { exportAuditLog } from '$lib/server/compliance';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
@@ -12,11 +12,12 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	if (!locals.user) error(401, 'Not authenticated.');
 	if (locals.user.role !== 'admin') error(403, 'Admin role required.');
 
-	const [users, apiKeys, stats, audit] = await Promise.all([
+	const [users, apiKeys, stats, audit, settings] = await Promise.all([
 		listUsers(env),
 		listApiKeys(env),
 		platformStats(env),
-		exportAuditLog(env, 50)
+		exportAuditLog(env, 50),
+		listSettings(env)
 	]);
-	return { users, apiKeys, stats, audit };
+	return { users, apiKeys, stats, audit, settings };
 };

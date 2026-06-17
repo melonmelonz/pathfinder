@@ -15,10 +15,15 @@ interface SessionUser {
 
 declare global {
 	namespace App {
-		// interface Error {}
+		interface Error {
+			message: string;
+			errorId?: string;
+		}
 		interface Locals {
 			/** Populated by hooks.server.ts from the JWT, or null if unauthenticated. */
 			user: SessionUser | null;
+			/** When authenticated via an API key, its scope ('read'|'write'); else null. */
+			apiScope: 'read' | 'write' | null;
 		}
 		// interface PageData {}
 		// interface PageState {}
@@ -30,6 +35,9 @@ declare global {
 				JWT_SECRET?: string;
 				DOCUMENTS?: R2Bucket;
 				CACHE?: KVNamespace;
+				RESEND_API_KEY?: string;
+				RESEND_FROM?: string;
+				SENTRY_DSN?: string;
 			};
 		}
 	}

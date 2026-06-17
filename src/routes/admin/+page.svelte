@@ -23,6 +23,83 @@
 		await invalidateAll();
 	}
 
+	async function changeRole(id: string, role: string) {
+		await fetch(`/api/admin/users/${id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ role })
+		});
+		await invalidateAll();
+	}
+
+	// Create user
+	let nu = $state({ name: '', email: '', password: '', role: 'staff', org: '' });
+	let createMsg = $state('');
+	async function createUser(e: Event) {
+		e.preventDefault();
+		const res = await fetch('/api/admin/users', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(nu)
+		});
+		const errBody = res.ok ? {} : ((await res.json().catch(() => ({}))) as { message?: string });
+		createMsg = res.ok ? `Created ${nu.email}.` : `Error: ${errBody.message ?? res.status}`;
+		if (res.ok) {
+			nu = { name: '', email: '', password: '', role: 'staff', org: '' };
+			await invalidateAll();
+		}
+	}
+
+	// Issue API key (raw shown once)
+	let keyName = $state('');
+	let keyScope = $state('read');
+	let issuedKey = $state('');
+	async function issueKey(e: Event) {
+		e.preventDefault();
+		const res = await fetch('/api/admin/keys', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ name: keyName, scope: keyScope })
+		});
+		if (res.ok) {
+			issuedKey = ((await res.json()) as { rawKey: string }).rawKey;
+			keyName = '';
+			await invalidateAll();
+		}
+	}
+	async function revokeKey(id: string) {
+		await fetch(`/api/admin/keys/${id}`, { method: 'DELETE' });
+		await invalidateAll();
+	}
+
+	// Settings
+	let setKey = $state('');
+	let setVal = $state('');
+	async function saveSetting(e: Event) {
+		e.preventDefault();
+		await fetch('/api/admin/settings', {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ key: setKey, value: setVal })
+		});
+		setKey = '';
+		setVal = '';
+		await invalidateAll();
+	}
+
+	// Audit filter
+	let filterActor = $state('');
+	let filterSince = $state('');
+	let filtered = $state<Array<{ id: string; action: string; resource: string | null; created_at: string }> | null>(null);
+	async function runFilter(e: Event) {
+		e.preventDefault();
+		const qs = new URLSearchParams();
+		if (filterActor) qs.set('actor', filterActor);
+		if (filterSince) qs.set('since', filterSince);
+		const res = await fetch(`/api/admin/audit?${qs}`);
+		if (res.ok) filtered = ((await res.json()) as { audit: typeof filtered }).audit;
+	}
+
 	const stats = $derived(data.stats);
 	const cards = $derived([
 		{ k: 'users', label: 'Users', v: stats.users },
@@ -50,6 +127,15 @@
 	</ul>
 
 	<h2>Users</h2>
+	<form class="row-form" onsubmit={createUser} data-testid="create-user">
+		<input placeholder="Name" bind:value={nu.name} required />
+		<input placeholder="Email" type="email" bind:value={nu.email} required />
+		<input placeholder="Password (8+)" type="text" bind:value={nu.password} required />
+		<select bind:value={nu.role} aria-label="Role"><option>admin</option><option>staff</option><option>client</option></select>
+		<input placeholder="Org (optional)" bind:value={nu.org} />
+		<button type="submit" data-testid="create-user-submit">Create user</button>
+		{#if createMsg}<span class="muted" data-testid="create-user-msg">{createMsg}</span>{/if}
+	</form>
 	<table data-testid="admin-users">
 		<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Org</th><th>Status</th><th></th></tr></thead>
 		<tbody>
@@ -57,9 +143,13 @@
 				<tr>
 					<td>{u.name}</td>
 					<td>{u.email}</td>
-					<td>{u.role}</td>
+					<td>
+						<select value={u.role} onchange={(e) => changeRole(u.id, (e.currentTarget as HTMLSelectElement).value)} data-testid="user-role-select">
+							<option>admin</option><option>staff</option><option>client</option>
+						</select>
+					</td>
 					<td>{u.org ?? '-'}</td>
-					<td>{u.active ? 'active' : 'disabled'}</td>
+					<td data-testid="user-status">{u.active ? 'active' : 'disabled'}</td>
 					<td><button class="sm" onclick={() => toggleActive(u.id, u.active)}>{u.active ? 'Disable' : 'Enable'}</button></td>
 				</tr>
 			{/each}
@@ -67,20 +157,56 @@
 	</table>
 
 	<h2>API keys</h2>
+	<form class="row-form" onsubmit={issueKey} data-testid="issue-key">
+		<input placeholder="Key name" bind:value={keyName} required />
+		<select bind:value={keyScope} aria-label="Scope"><option value="read">read</option><option value="write">write</option></select>
+		<button type="submit" data-testid="issue-key-submit">Issue key</button>
+	</form>
+	{#if issuedKey}
+		<p class="muted" data-testid="issued-key">New key (shown once): <code>{issuedKey}</code></p>
+	{/if}
 	{#if data.apiKeys.length}
 		<table data-testid="admin-apikeys">
-			<thead><tr><th>Name</th><th>Key</th><th>Status</th></tr></thead>
+			<thead><tr><th>Name</th><th>Key</th><th>Scope</th><th>Status</th><th></th></tr></thead>
 			<tbody>
 				{#each data.apiKeys as k (k.id)}
-					<tr><td>{k.name}</td><td>{k.masked_key ?? '-'}</td><td>{k.revoked ? 'revoked' : 'active'}</td></tr>
+					<tr>
+						<td>{k.name}</td><td>{k.masked_key ?? '-'}</td><td>{(k as { scope?: string }).scope ?? '-'}</td>
+						<td>{k.revoked ? 'revoked' : 'active'}</td>
+						<td>{#if !k.revoked}<button class="sm" onclick={() => revokeKey(k.id)} data-testid="revoke-key">Revoke</button>{/if}</td>
+					</tr>
 				{/each}
 			</tbody>
 		</table>
 	{:else}
-		<p class="muted">No API keys (the v1 import seeds these).</p>
+		<p class="muted">No API keys yet.</p>
+	{/if}
+
+	<h2>Deployment settings</h2>
+	<form class="row-form" onsubmit={saveSetting} data-testid="settings-form">
+		<input placeholder="key" bind:value={setKey} required />
+		<input placeholder="value" bind:value={setVal} />
+		<button type="submit" data-testid="setting-save">Save setting</button>
+	</form>
+	{#if data.settings.length}
+		<table data-testid="admin-settings">
+			<thead><tr><th>Key</th><th>Value</th></tr></thead>
+			<tbody>{#each data.settings as s (s.key)}<tr><td>{s.key}</td><td>{s.value}</td></tr>{/each}</tbody>
+		</table>
 	{/if}
 
 	<h2>Recent audit log</h2>
+	<form class="row-form" onsubmit={runFilter} data-testid="audit-filter">
+		<input placeholder="actor user id" bind:value={filterActor} />
+		<input placeholder="since (ISO)" bind:value={filterSince} />
+		<button type="submit" data-testid="audit-filter-run">Filter</button>
+	</form>
+	{#if filtered}
+		<table data-testid="admin-audit-filtered">
+			<thead><tr><th>When</th><th>Action</th><th>Resource</th></tr></thead>
+			<tbody>{#each filtered as a (a.id)}<tr><td>{a.created_at}</td><td>{a.action}</td><td>{a.resource ?? '-'}</td></tr>{/each}</tbody>
+		</table>
+	{/if}
 	<table data-testid="admin-audit">
 		<thead><tr><th>When</th><th>Action</th><th>Resource</th><th>IP</th></tr></thead>
 		<tbody>
@@ -109,4 +235,8 @@
 	th, td { text-align: left; padding: var(--space-2); border-bottom: 1px solid color-mix(in srgb, var(--brand-secondary) 25%, transparent); }
 	th { color: var(--brand-muted); font-weight: 600; }
 	.sm { padding: 0.1em 0.6em; background: transparent; color: var(--brand-text); border: 1px solid var(--brand-secondary); border-radius: var(--radius); cursor: pointer; font-size: 0.75rem; }
+	.row-form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); }
+	.row-form input, .row-form select { padding: var(--space-1) var(--space-2); background: var(--brand-surface); color: var(--brand-text); border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent); border-radius: var(--radius); }
+	.row-form button { padding: var(--space-1) var(--space-3); background: var(--brand-primary); color: var(--brand-bg); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer; }
+	code { color: var(--brand-primary); word-break: break-all; }
 </style>

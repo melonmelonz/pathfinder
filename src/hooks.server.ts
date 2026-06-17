@@ -5,12 +5,15 @@
 // guard protected route trees - unauthenticated users hitting /dashboard are
 // redirected to /login.
 
-import { json, redirect, type Handle } from '@sveltejs/kit';
+import { json, redirect, type Handle, type HandleServerError } from '@sveltejs/kit';
 import {
 	SESSION_COOKIE,
 	userFromToken,
-	bearerFromRequest
+	bearerFromRequest,
+	apiKeyFromRequest,
+	userFromApiKey
 } from '$lib/server/session';
+import { captureError } from '$lib/server/observability';
 
 /** Route prefixes that require an authenticated session. (/share is public:
  *  a share token is its own bearer of read-only access.) */
@@ -70,11 +73,19 @@ function corsCheck(event: Parameters<Handle>[0]['event']): Response | null {
 export const handle: Handle = async ({ event, resolve }) => {
 	const env = event.platform?.env;
 	event.locals.user = null;
+	event.locals.apiScope = null;
 
 	if (env?.DB) {
-		const token =
-			event.cookies.get(SESSION_COOKIE) || bearerFromRequest(event.request);
+		const token = event.cookies.get(SESSION_COOKIE) || bearerFromRequest(event.request);
 		event.locals.user = await userFromToken(token, env);
+		// API-key auth (Epic E13): falls back to a scoped key when no JWT session.
+		if (!event.locals.user) {
+			const keyed = await userFromApiKey(apiKeyFromRequest(event.request), env);
+			if (keyed) {
+				event.locals.user = keyed.user;
+				event.locals.apiScope = keyed.scope;
+			}
+		}
 	}
 
 	const path = event.url.pathname;
@@ -85,6 +96,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (blocked) {
 			applySecurityHeaders(blocked.headers, event.url.protocol === 'https:');
 			return blocked;
+		}
+		// A read-scoped API key may not perform mutations (AC-13.2.1).
+		const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(event.request.method);
+		if (event.locals.apiScope === 'read' && mutating) {
+			const denied = json({ error: 'This API key is read-only.' }, { status: 403 });
+			applySecurityHeaders(denied.headers, event.url.protocol === 'https:');
+			return denied;
 		}
 	}
 
@@ -98,4 +116,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	applySecurityHeaders(response.headers, event.url.protocol === 'https:');
 	return response;
+};
+
+/**
+ * Observability (Epic E13, AC-13.5.1): capture every unhandled server error
+ * with diagnostic context into error_log (and forward to Sentry when a DSN is
+ * configured). Returns a safe shape to the client. Never throws.
+ */
+export const handleError: HandleServerError = async ({ error, event, status, message }) => {
+	const err = error as Error;
+	const id = await captureError(event.platform?.env, {
+		message: err?.message ?? message,
+		stack: err?.stack ?? null,
+		url: event.url.pathname,
+		status,
+		userId: event.locals.user?.id ?? null
+	});
+	return { message: 'Internal Error', errorId: id };
 };
