@@ -78,6 +78,24 @@ function drawDiamond(d: jsPDF, x: number, y: number, r: number) {
 	d.triangle(x, y - r, x - r, y, x, y + r, 'F');
 }
 
+/** Light reference grid over the floorplan region (AC-6.3.1). */
+function drawGrid(d: jsPDF, top: number, wMm: number, hMm: number, step = 25) {
+	d.setDrawColor(200, 206, 214);
+	d.setLineWidth(0.1);
+	for (let x = step; x < wMm; x += step) d.line(x, top, x, top + hMm);
+	for (let y = top + step; y < top + hMm; y += step) d.line(0, y, wMm, y);
+}
+
+/** A north arrow marker (AC-6.3.1: north-oriented). */
+function drawNorth(d: jsPDF, x: number, y: number) {
+	d.setFillColor(20, 30, 45);
+	d.triangle(x, y - 5, x - 3, y + 3, x + 3, y + 3, 'F');
+	d.setTextColor(20, 30, 45);
+	d.setFont('helvetica', 'bold');
+	d.setFontSize(7);
+	d.text('N', x, y + 7, { align: 'center' });
+}
+
 const typeMeta = Object.fromEntries(
 	Object.entries(MAP_TYPES).map(([k, v]) => [k, { label: v.label, color: v.color }])
 ) as Record<MapMarkerType, { label: string; color: string }>;
@@ -135,6 +153,10 @@ export function buildMapPdf(
 
 		// Floorplan image (cropped region scaled to crop mm box under the header).
 		d.addImage(pg.imageDataUrl, 'JPEG', 0, HDR_MM, sz.cropWmm, sz.cropHmm);
+		// Reference grid + north arrow over the floorplan (AC-6.3.1: north-oriented,
+		// gridded print layout).
+		drawGrid(d, HDR_MM, sz.cropWmm, sz.cropHmm);
+		drawNorth(d, sz.cropWmm - 10, HDR_MM + 12);
 
 		// Markers: style-specific pin (shadow + fill) then label.
 		for (const m of pageMarkers) {

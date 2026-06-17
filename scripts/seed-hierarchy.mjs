@@ -134,6 +134,10 @@ annotation('ann-wahs-rect-0000000000001', DOC_WAHS_F1, 1, 'rect', 0.15, 0.15, 0.
 marker('mk-wahs-stair-000000000001', DOC_WAHS_F1, 1, 'stairs', 'S1', 0.2, 0.8);
 marker('mk-wahs-door-0000000000001', DOC_WAHS_F1, 1, 'door', 'A', 0.6, 0.3);
 
+// A dedicated scratch document (no annotations) for write/persist e2e so the
+// mutation tests do not disturb the read-only-count assertions on DOC_WAHS_F1.
+document('doc-wahs-scratch-00000000001', 'proj-wahs-egress-000000000001', 'WAHS scratch sheet.pdf', 'demo/scratch.pdf', 1);
+
 // Media assets (Epic E7/E8 demo). Binaries are not seeded (no real scans in a
 // public repo); the 3D viewer degrades gracefully to its "unavailable" state.
 function media(id, buildingId, type, filename, key, tier, served, version, captureDate, surveyor, floor) {
@@ -148,6 +152,8 @@ function media(id, buildingId, type, filename, key, tier, served, version, captu
 media('med-wahs-splat-f1-00000001', B_WAHS_MAIN, 'splat', 'WAHS Main Floor 1.spz', 'hot/splat/bld-wahs-main/v1/wahs_f1.spz', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
 media('med-wahs-video-f1-0000001', B_WAHS_MAIN, 'walkthrough_video', 'WAHS Main Floor 1 walkthrough.mp4', 'hot/video/bld-wahs-main/v1/wahs_f1.mp4', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
 media('med-wahs-ply-f1-000000001', B_WAHS_MAIN, 'point_cloud', 'WAHS Main Floor 1 master.ply', 'cold/pointcloud/bld-wahs-main/v1/wahs_f1.ply', 'cold', 0, 1, '2026-05-12', 'J. Porterfield', 1);
+media('med-wahs-pdf-f1-000000001', B_WAHS_MAIN, 'floorplan_pdf', 'WAHS Main Floor 1.pdf', 'hot/docs/bld-wahs-main/v1/wahs_f1.pdf', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
+media('med-wahs-img-f1-000000001', B_WAHS_MAIN, 'reference_image', 'WAHS entrance photo.jpg', 'hot/ref/bld-wahs-main/v1/entrance.jpg', 'hot', 1, 1, '2026-05-12', 'J. Porterfield', 1);
 
 // --- Search index seed (Epic E10) so /search returns hits without a manual
 //     reindex. Index-on-write keeps it current as entities are created. ---

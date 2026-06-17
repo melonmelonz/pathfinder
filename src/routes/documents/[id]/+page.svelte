@@ -125,6 +125,8 @@
 	let mapMoved = false;
 	// delete-confirm modal
 	let confirmDeleteOpen = $state(false);
+	// responder safety layer visibility (E5 AC-5.4.1)
+	let showResponderLayer = $state(true);
 
 	function deserialize(rows: typeof data.annotations): Annotation[] {
 		return rows.map((r) => ({
@@ -166,7 +168,12 @@
 
 	function redraw() {
 		if (!annCanvas) return;
-		renderAnnotations(annCanvas.getContext('2d')!, annotations, currentPage, dims(), nums, selectedId);
+		// Responder layer = the 6 safety markers; toggling it off shows only the
+		// non-responder annotations (AC-5.4.1).
+		const visible = showResponderLayer
+			? annotations
+			: annotations.filter((a) => !MARKER_TOOLS.includes(a.type));
+		renderAnnotations(annCanvas.getContext('2d')!, visible, currentPage, dims(), nums, selectedId);
 		renderMap();
 	}
 
@@ -1045,6 +1052,10 @@
 					{saving ? 'Saving...' : dirty ? 'Save' : 'Saved'}
 				</button>
 			{/if}
+			<label class="layer-toggle" data-testid="responder-layer-toggle">
+				<input type="checkbox" bind:checked={showResponderLayer} onchange={redraw} />
+				Responder layer
+			</label>
 			<button onclick={exportJson} data-testid="export-json">Export JSON</button>
 			<button onclick={exportAnnotated} disabled={exporting} data-testid="export-annotated">Export annotated PDF</button>
 			<button
@@ -1237,6 +1248,13 @@
 	.zoom {
 		font-variant-numeric: tabular-nums;
 		color: var(--brand-muted);
+	}
+	.layer-toggle {
+		font-size: 0.75rem;
+		color: var(--brand-muted);
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
 	}
 	.share-note {
 		font-size: 0.85rem;

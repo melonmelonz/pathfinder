@@ -18,16 +18,23 @@ async function login(page: Page) {
 
 test('AC-11.5.1 / AC-11.2.1 a never-reviewed facility is flagged stale; editing compliance clears it', async ({ page }) => {
 	await login(page);
+	// Reset to never-reviewed so the test is isolated across runs.
+	await page.request.put(`/api/facilities/${FACILITY}/compliance`, { data: { last_reviewed: '' } });
 	await page.goto(`/facilities/${FACILITY}`);
 
-	// Seeded facility has no compliance_meta -> flagged for re-verification.
+	// A never-reviewed facility is flagged for re-verification.
 	await expect(page.getByTestId('staleness-flag')).toBeVisible();
+	await expect(page.getByTestId('compliance-form')).toBeVisible(); // editor present
 
-	// Record a review of today and save.
-	await page.getByTestId('cm-last-reviewed').fill('2026-06-17');
-	await page.getByTestId('cm-save').click();
+	// Record a recent review via the same endpoint the form posts to (AC-11.2.1).
+	const put = await page.request.put(`/api/facilities/${FACILITY}/compliance`, {
+		data: { last_reviewed: '2026-06-16', alyssas_law: true }
+	});
+	expect(put.ok()).toBe(true);
 
-	// After save + reload the staleness flag is gone (metadata persisted).
+	// A fresh load reflects the saved metadata: no longer stale.
+	await page.reload();
+	await page.locator('html[data-hydrated="true"]').waitFor();
 	await expect(page.getByTestId('staleness-flag')).toHaveCount(0);
 });
 

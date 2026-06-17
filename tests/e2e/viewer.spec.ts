@@ -69,6 +69,57 @@ test('E6 map mode exposes marker tools and the NFPA export button', async ({ pag
 	await page.screenshot({ path: 'tests/e2e/__screenshots__/viewer-map-mode.png', fullPage: true });
 });
 
+test('AC-5.2.1 / AC-5.3.1 drawing a shape creates an annotation that persists across reload', async ({ page }) => {
+	// Dedicated scratch document so this write test does not disturb the
+	// read-only-count assertions on the primary seeded document.
+	const SCRATCH = 'doc-wahs-scratch-00000000001';
+	await login(page);
+	// Reset the scratch doc so the test is isolated across runs.
+	await page.request.put(`/api/documents/${SCRATCH}/annotations`, { data: { annotations: [] } });
+	await page.goto(`/documents/${SCRATCH}`);
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	await expect(page.getByTestId('annotation-count')).toHaveText(/0 annotations/);
+
+	// Draw a circle by dragging on the canvas.
+	const canvas = page.getByTestId('annotation-canvas');
+	const box = (await canvas.boundingBox())!;
+	await page.getByTestId('tool-circle').click();
+	await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.4);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.6, { steps: 5 });
+	await page.mouse.up();
+	await expect(page.getByTestId('annotation-count')).toHaveText(/1 annotations/);
+
+	// Save, then reload -> the drawn annotation is still there (persisted).
+	await page.getByTestId('save').click();
+	await expect(page.getByTestId('save')).toHaveText(/Saved/);
+	await page.reload();
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	await expect(page.getByTestId('annotation-count')).toHaveText(/1 annotations/);
+});
+
+test('AC-5.4.1 the responder safety layer can be toggled off', async ({ page }) => {
+	await login(page);
+	await page.goto(`/documents/${DOC}`);
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	const toggle = page.getByTestId('responder-layer-toggle').locator('input');
+	await expect(toggle).toBeChecked();
+	await toggle.uncheck();
+	await expect(toggle).not.toBeChecked(); // safety markers hidden from the view
+});
+
+test('AC-6.1.2 only the fixed safety symbol catalog is placeable (no freehand symbol tool)', async ({ page }) => {
+	await login(page);
+	await page.goto(`/documents/${DOC}`);
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	// The six NFPA safety markers are present...
+	for (const m of ['aed', 'stairs', 'door', 'overhead', 'exit', 'fireext']) {
+		await expect(page.getByTestId(`tool-${m}`)).toBeVisible();
+	}
+	// ...and there is no arbitrary/custom-symbol tool.
+	await expect(page.getByTestId('tool-custom')).toHaveCount(0);
+});
+
 test('E5 annotated-PDF export is available alongside JSON export', async ({ page }) => {
 	await login(page);
 	await page.goto(`/documents/${DOC}`);

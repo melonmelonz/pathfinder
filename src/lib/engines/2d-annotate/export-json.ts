@@ -86,6 +86,35 @@ export function buildExport(
 }
 
 /**
+ * Inverse of buildExport: parse a schema-1.0 envelope back into Annotation[]
+ * (AC-5.3.2 round-trip). Coordinates x/y/w/h map back to nx/ny/nw/nh.
+ */
+export function importEnvelope(env: ExportEnvelope): Annotation[] {
+	const out: Annotation[] = [];
+	for (const page of env.document.pages) {
+		for (const a of page.annotations) {
+			out.push({
+				id: a.id,
+				page: page.pageNumber,
+				type: a.type as Annotation['type'],
+				nx: a.x,
+				ny: a.y,
+				nw: a.w,
+				nh: a.h,
+				points: a.points,
+				color: a.color,
+				text: a.text,
+				images: a.images,
+				resolved: a.resolved,
+				createdBy: a.createdBy,
+				createdAt: a.createdAt
+			});
+		}
+	}
+	return out;
+}
+
+/**
  * Assign comment numbers globally across all pages, ordered by createdAt
  * (v1 _commentNums). Returns a Map of annotation id -> 1-based number for
  * every annotation of type 'comment'. Annotations with no createdAt sort last
