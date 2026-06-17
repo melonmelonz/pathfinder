@@ -44,5 +44,12 @@ export const POST: RequestHandler = async ({ locals, platform }) => {
 	}
 
 	await markBatched(env, raw.map((n) => n.id));
-	return json({ ok: true, digests: digests.length, sent });
+	// Return the digest envelopes (subject + deep links) so the mention->notify
+	// loop is verifiable; the actual email send is the `sent` count above.
+	return json({
+		ok: true,
+		digests: digests.length,
+		sent,
+		envelopes: digests.map((d) => ({ recipientEmail: d.recipientEmail, subject: d.subject, deepLinks: d.deepLinks }))
+	});
 };

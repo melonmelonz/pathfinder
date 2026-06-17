@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ locals, platform, params, request }
 	const doc = await getDocument(env, locals.user, params.id);
 	if (!doc) error(404, 'Document not found.');
 
-	let body: { annotationId?: string; text?: string };
+	let body: { annotationId?: string; text?: string; parentId?: string | null; images?: string[] };
 	try {
 		body = await request.json();
 	} catch {
@@ -33,12 +33,26 @@ export const POST: RequestHandler = async ({ locals, platform, params, request }
 	}
 	if (!body.annotationId || !body.text?.trim()) error(400, 'annotationId and text are required.');
 
+	// Document org for mention scoping (AC-9.3.2).
+	const orgRow = await env.DB.prepare(
+		`SELECT o.name AS n FROM documents d
+		   JOIN projects p ON p.id = d.project_id
+		   JOIN buildings b ON b.id = p.building_id
+		   JOIN facilities f ON f.id = b.facility_id
+		   JOIN orgs o ON o.id = f.org_id WHERE d.id = ?`
+	)
+		.bind(params.id)
+		.first<{ n: string }>();
+
 	const comment = await addComment(env, {
 		annotationId: body.annotationId,
 		userId: locals.user.id,
 		actorName: locals.user.name,
 		text: body.text.trim(),
-		resourceUrl: `/documents/${params.id}`
+		resourceUrl: `/documents/${params.id}`,
+		parentId: body.parentId ?? null,
+		images: body.images ?? null,
+		docOrg: orgRow?.n ?? null
 	});
 	return json({ comment }, { status: 201 });
 };

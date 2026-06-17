@@ -1,8 +1,7 @@
 <script lang="ts">
-	// Anchored comment threads + resolve workflow (Epic E9). Comments attach to
-	// the currently-selected annotation. Resolving hides (does not delete) the
-	// thread; toggle "Show resolved" to see the audit trail. @-mentions in the
-	// body fan out to batched notifications server-side.
+	// Anchored comment threads + resolve + replies + image attachments (Epic E9).
+	// Comments attach to the selected annotation; replies nest under a parent;
+	// resolving hides (not deletes); @-mentions fan out to batched notifications.
 	import { onMount } from 'svelte';
 
 	interface Comment {
@@ -10,6 +9,8 @@
 		annotation_id: string;
 		text: string;
 		resolved: number;
+		parent_id: string | null;
+		images: string | null;
 		author_name?: string;
 		created_at: string;
 	}
@@ -24,26 +25,43 @@
 	let showResolved = $state(false);
 	let draft = $state('');
 	let busy = $state(false);
+	let replyTo = $state<string | null>(null);
+	let replyDraft = $state('');
+	let pendingImages = $state<string[]>([]);
+	let lightbox = $state<string | null>(null);
+
+	const topLevel = $derived(comments.filter((c) => !c.parent_id));
+	const repliesOf = (id: string) => comments.filter((c) => c.parent_id === id);
+	const imgs = (c: Comment): string[] => (c.images ? (JSON.parse(c.images) as string[]) : []);
+	const imgUrl = (key: string) => `/api/documents/${documentId}/comment-images?key=${encodeURIComponent(key)}`;
 
 	async function load() {
 		const res = await fetch(`/api/documents/${documentId}/comments${showResolved ? '?all=1' : ''}`);
 		if (res.ok) comments = ((await res.json()) as { comments: Comment[] }).comments;
 	}
-
 	onMount(load);
 
-	async function add() {
-		if (!selectedId) return;
-		if (!draft.trim()) return;
+	async function uploadImage(file: File) {
+		const fd = new FormData();
+		fd.append('file', file);
+		const res = await fetch(`/api/documents/${documentId}/comment-images`, { method: 'POST', body: fd });
+		if (res.ok) pendingImages = [...pendingImages, ((await res.json()) as { key: string }).key];
+	}
+
+	async function post(text: string, parentId: string | null) {
+		if (!text.trim() && pendingImages.length === 0) return;
 		busy = true;
 		const res = await fetch(`/api/documents/${documentId}/comments`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ annotationId: selectedId, text: draft.trim() })
+			body: JSON.stringify({ annotationId: selectedId, text: text.trim() || '(image)', parentId, images: pendingImages })
 		});
 		busy = false;
 		if (res.ok) {
 			draft = '';
+			replyDraft = '';
+			replyTo = null;
+			pendingImages = [];
 			await load();
 		}
 	}
@@ -68,17 +86,36 @@
 	</header>
 
 	<ul class="clist" data-testid="comment-list">
-		{#each comments as c (c.id)}
+		{#each topLevel as c (c.id)}
 			<li class:resolved={c.resolved} data-testid="comment">
 				<p class="body">{c.text}</p>
+				{#each imgs(c) as key (key)}
+					<button class="thumb" onclick={() => (lightbox = imgUrl(key))} aria-label="View attachment">
+						<img src={imgUrl(key)} alt="comment attachment" />
+					</button>
+				{/each}
 				<p class="meta">
 					{c.author_name ?? 'Unknown'}
 					{#if c.resolved}<span class="rb">resolved</span>{/if}
 				</p>
+				<ul class="replies" data-testid="replies">
+					{#each repliesOf(c.id) as r (r.id)}
+						<li data-testid="reply"><span class="ra">{r.author_name ?? '?'}:</span> {r.text}</li>
+					{/each}
+				</ul>
 				{#if canEdit}
-					<button class="resolve" onclick={() => toggleResolve(c)} data-testid="resolve-toggle">
-						{c.resolved ? 'Reopen' : 'Resolve'}
-					</button>
+					<div class="crow">
+						<button class="resolve" onclick={() => toggleResolve(c)} data-testid="resolve-toggle">
+							{c.resolved ? 'Reopen' : 'Resolve'}
+						</button>
+						<button class="resolve" onclick={() => (replyTo = replyTo === c.id ? null : c.id)} data-testid="reply-toggle">Reply</button>
+					</div>
+					{#if replyTo === c.id}
+						<form onsubmit={(e) => { e.preventDefault(); post(replyDraft, c.id); }}>
+							<input bind:value={replyDraft} placeholder="Reply..." data-testid="reply-input" />
+							<button type="submit" data-testid="reply-submit">Send</button>
+						</form>
+					{/if}
 				{/if}
 			</li>
 		{:else}
@@ -87,19 +124,38 @@
 	</ul>
 
 	{#if canEdit}
-		<form onsubmit={(e) => { e.preventDefault(); add(); }}>
+		<form onsubmit={(e) => { e.preventDefault(); post(draft, null); }}>
 			<textarea
 				bind:value={draft}
 				placeholder={selectedId ? 'Comment on the selected annotation. Use @name to mention.' : 'Select an annotation to comment on it.'}
 				disabled={!selectedId || busy}
 				data-testid="comment-draft"
 			></textarea>
-			<button type="submit" disabled={!selectedId || busy || !draft.trim()} data-testid="comment-submit">
-				{busy ? 'Posting...' : 'Comment'}
-			</button>
+			<div class="crow">
+				<label class="attach">
+					Attach
+					<input
+						type="file"
+						accept="image/*"
+						disabled={!selectedId || busy}
+						data-testid="comment-image"
+						onchange={(e) => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) uploadImage(f); }}
+					/>
+				</label>
+				{#if pendingImages.length}<span class="muted" data-testid="pending-images">{pendingImages.length} image(s) attached</span>{/if}
+				<button type="submit" disabled={!selectedId || busy} data-testid="comment-submit">
+					{busy ? 'Posting...' : 'Comment'}
+				</button>
+			</div>
 		</form>
 	{/if}
 </aside>
+
+{#if lightbox}
+	<div class="lightbox" role="presentation" onclick={() => (lightbox = null)} data-testid="lightbox">
+		<img src={lightbox} alt="attachment full size" />
+	</div>
+{/if}
 
 <style>
 	.comments { width: 16rem; display: flex; flex-direction: column; gap: var(--space-2); }
@@ -107,14 +163,22 @@
 	h2 { font-size: 1rem; }
 	.toggle { font-size: 0.75rem; color: var(--brand-muted); display: flex; gap: var(--space-1); align-items: center; }
 	.clist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-	.clist li { background: var(--brand-surface); border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent); border-radius: var(--radius); padding: var(--space-2); }
-	.clist li.resolved { opacity: 0.6; }
+	.clist > li { background: var(--brand-surface); border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent); border-radius: var(--radius); padding: var(--space-2); }
+	.clist > li.resolved { opacity: 0.6; }
 	.body { font-size: 0.85rem; }
 	.meta { font-size: 0.72rem; color: var(--brand-muted); margin-top: var(--space-1); }
 	.rb { color: var(--brand-primary); margin-left: var(--space-1); }
-	.resolve { margin-top: var(--space-1); font-size: 0.75rem; padding: 0.1em 0.6em; background: transparent; color: var(--brand-text); border: 1px solid var(--brand-secondary); border-radius: var(--radius); cursor: pointer; }
+	.crow { display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-1); flex-wrap: wrap; }
+	.resolve { font-size: 0.75rem; padding: 0.1em 0.6em; background: transparent; color: var(--brand-text); border: 1px solid var(--brand-secondary); border-radius: var(--radius); cursor: pointer; }
+	.replies { list-style: none; margin: var(--space-1) 0 0 var(--space-2); padding-left: var(--space-2); border-left: 2px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent); font-size: 0.8rem; }
+	.ra { font-weight: 600; color: var(--brand-primary); }
 	.muted { color: var(--brand-muted); font-size: 0.85rem; }
+	.thumb { padding: 0; border: none; background: none; cursor: pointer; }
+	.thumb img { max-width: 100%; border-radius: var(--radius); margin-top: var(--space-1); }
+	.attach { font-size: 0.72rem; color: var(--brand-muted); }
 	textarea { width: 100%; min-height: 4rem; background: var(--brand-surface); color: var(--brand-text); border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent); border-radius: var(--radius); padding: var(--space-2); font: inherit; }
 	form button { margin-top: var(--space-1); padding: var(--space-1) var(--space-3); background: var(--brand-primary); color: var(--brand-bg); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer; }
 	form button:disabled { opacity: 0.55; cursor: default; }
+	.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 60; padding: var(--space-4); }
+	.lightbox img { max-width: 90vw; max-height: 90vh; }
 </style>

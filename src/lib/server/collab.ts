@@ -14,6 +14,8 @@ export interface CommentRow {
 	user_id: string;
 	text: string;
 	resolved: number;
+	parent_id: string | null;
+	images: string | null;
 	created_at: string;
 	author_name?: string;
 }
@@ -40,35 +42,51 @@ export async function listComments(
 	return results ?? [];
 }
 
-/** Add a comment, fan @-mentions out into notifications, and log activity. */
+/**
+ * Add a comment (optionally a reply via parentId, optionally with image keys),
+ * fan @-mentions out into notifications, and log activity. Mentions are
+ * org-gated: a mentioned user is only notified if they can see the document's
+ * org (staff/admin always; clients only within `docOrg`) - AC-9.3.2.
+ */
 export async function addComment(
 	env: Env,
-	input: { annotationId: string; userId: string; actorName: string; text: string; resourceUrl: string }
+	input: {
+		annotationId: string;
+		userId: string;
+		actorName: string;
+		text: string;
+		resourceUrl: string;
+		parentId?: string | null;
+		images?: string[] | null;
+		docOrg?: string | null;
+	}
 ): Promise<CommentRow> {
 	const id = uuid();
 	await env.DB.prepare(
-		'INSERT INTO annotation_comments (id, annotation_id, user_id, text) VALUES (?, ?, ?, ?)'
+		'INSERT INTO annotation_comments (id, annotation_id, user_id, text, parent_id, images) VALUES (?, ?, ?, ?, ?, ?)'
 	)
-		.bind(id, input.annotationId, input.userId, input.text)
+		.bind(id, input.annotationId, input.userId, input.text, input.parentId ?? null, input.images ? JSON.stringify(input.images) : null)
 		.run();
 
-	// Resolve @handles to users and queue (unbatched) notifications.
+	// Resolve @handles to users and queue (unbatched) notifications, org-gated.
 	const handles = parseMentions(input.text);
 	if (handles.length) {
 		const stmts: D1PreparedStatement[] = [];
 		for (const h of handles) {
 			const u = await env.DB.prepare(
-				"SELECT id FROM users WHERE lower(email) LIKE ? OR lower(replace(name,' ','')) = ? LIMIT 1"
+				"SELECT id, role, org FROM users WHERE lower(email) LIKE ? OR lower(replace(name,' ','')) = ? LIMIT 1"
 			)
 				.bind(h + '@%', h)
-				.first<{ id: string }>();
-			if (u && u.id !== input.userId) {
-				stmts.push(
-					env.DB.prepare(
-						'INSERT INTO notifications (id, recipient_id, actor_id, kind, resource_url, excerpt) VALUES (?, ?, ?, ?, ?, ?)'
-					).bind(uuid(), u.id, input.userId, 'mention', input.resourceUrl, input.text.slice(0, 140))
-				);
-			}
+				.first<{ id: string; role: string; org: string | null }>();
+			if (!u || u.id === input.userId) continue;
+			// AC-9.3.2: a client mentioned outside the document's org is not notified.
+			const canSee = u.role === 'admin' || u.role === 'staff' || !input.docOrg || u.org === input.docOrg;
+			if (!canSee) continue;
+			stmts.push(
+				env.DB.prepare(
+					'INSERT INTO notifications (id, recipient_id, actor_id, kind, resource_url, excerpt) VALUES (?, ?, ?, ?, ?, ?)'
+				).bind(uuid(), u.id, input.userId, 'mention', input.resourceUrl, input.text.slice(0, 140))
+			);
 		}
 		if (stmts.length) await env.DB.batch(stmts);
 	}
@@ -149,6 +167,10 @@ export async function createShareLink(
 	return token;
 }
 
+export async function revokeShareLink(env: Env, token: string): Promise<void> {
+	await env.DB.prepare('UPDATE share_links SET revoked = 1 WHERE token = ?').bind(token).run();
+}
+
 export async function resolveShareLink(
 	env: Env,
 	token: string
@@ -185,6 +207,20 @@ export async function unbatchedNotifications(env: Env): Promise<RawNotification[
 		  WHERE n.batched_at IS NULL
 		  ORDER BY n.created_at`
 	).all<RawNotification>();
+	return results ?? [];
+}
+
+/** The caller's own recent notifications (for the bell / mention checks). */
+export async function listNotifications(
+	env: Env,
+	userId: string,
+	limit = 50
+): Promise<Array<{ id: string; kind: string; resource_url: string; excerpt: string | null; read_at: string | null; created_at: string }>> {
+	const { results } = await env.DB.prepare(
+		'SELECT id, kind, resource_url, excerpt, read_at, created_at FROM notifications WHERE recipient_id = ? ORDER BY created_at DESC LIMIT ?'
+	)
+		.bind(userId, limit)
+		.all<{ id: string; kind: string; resource_url: string; excerpt: string | null; read_at: string | null; created_at: string }>();
 	return results ?? [];
 }
 
