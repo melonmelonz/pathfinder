@@ -9,6 +9,7 @@ import type { PageServerLoad } from './$types';
 import { getBuilding, getFacility, listBuildings, listProjects, isGlobalScope } from '$lib/server/hierarchy';
 import { listBuildingDocuments } from '$lib/server/documents';
 import { listMedia } from '$lib/server/media';
+import { isFavorite } from '$lib/server/favorites';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const env = platform?.env;
@@ -20,12 +21,13 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 	const facility = await getFacility(env, locals.user, building.facility_id);
 
-	const [siblings, projects, documents, media] = await Promise.all([
+	const [siblings, projects, documents, media, favorite] = await Promise.all([
 		listBuildings(env, locals.user, { facilityId: building.facility_id }),
 		listProjects(env, locals.user, { buildingId: building.id }),
 		listBuildingDocuments(env, locals.user, building.id),
-		listMedia(env, locals.user, { buildingId: building.id })
+		listMedia(env, locals.user, { buildingId: building.id }),
+		isFavorite(env, locals.user.id, building.id)
 	]);
 
-	return { building, facility, siblings, projects, documents, media, canEdit: isGlobalScope(locals.user) };
+	return { building, facility, siblings, projects, documents, media, favorite, canEdit: isGlobalScope(locals.user) };
 };

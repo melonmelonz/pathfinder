@@ -36,6 +36,7 @@
 	import { buildAnnotatedPdf, EXPORT_SCALE } from '$lib/engines/2d-annotate/export-annotated';
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte';
 	import { buildMapTextAlternative } from '$lib/engines/a11y/map-text';
+	import { activeBrand } from '$lib/brand';
 
 	let { data }: { data: PageData } = $props();
 
@@ -263,7 +264,7 @@
 			ctx.fillRect(0, y, x, h);
 			ctx.fillRect(x + w, y, cw - (x + w), h);
 		}
-		ctx.strokeStyle = '#6fa8d4';
+		ctx.strokeStyle = activeBrand.colors.primary; // brand token, not a literal
 		ctx.setLineDash([6, 4]);
 		ctx.lineWidth = 2;
 		ctx.strokeRect(x, y, w, h);

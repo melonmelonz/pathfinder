@@ -12,6 +12,17 @@
 	const projects = $derived(data.projects);
 	const documents = $derived(data.documents);
 
+	// Favorite star (E3 AC-3.5.1), persisted per user.
+	let favorite = $state(false);
+	$effect(() => {
+		favorite = data.favorite;
+	});
+	async function toggleFavorite() {
+		const method = favorite ? 'DELETE' : 'POST';
+		const res = await fetch(`/api/buildings/${building.id}/favorite`, { method });
+		if (res.ok) favorite = ((await res.json()) as { favorite: boolean }).favorite;
+	}
+
 	// Batch NFPA export (Epic E6): enqueue a tracked job, then render+download an
 	// NFPA map for every floorplan in this building, reporting progress back.
 	let batchBusy = $state(false);
@@ -129,10 +140,20 @@
 <Breadcrumbs {crumbs} />
 
 <section class="entity">
-	<header>
-		<p class="eyebrow">Building</p>
-		<h1>{building.name}</h1>
-		<p class="muted">{building.floors} floor{building.floors === 1 ? '' : 's'}</p>
+	<header class="bhead">
+		<div>
+			<p class="eyebrow">Building</p>
+			<h1>{building.name}</h1>
+			<p class="muted">{building.floors} floor{building.floors === 1 ? '' : 's'}</p>
+		</div>
+		<button
+			class="star"
+			class:on={favorite}
+			onclick={toggleFavorite}
+			aria-pressed={favorite}
+			data-testid="favorite-toggle"
+			title={favorite ? 'Unstar building' : 'Star building'}
+		>{favorite ? 'Starred' : 'Star'}</button>
 	</header>
 
 	<div class="floor-head">
@@ -228,6 +249,26 @@
 	h2 {
 		font-size: 1.1rem;
 		margin-bottom: calc(-1 * var(--space-2));
+	}
+	.bhead {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+	.star {
+		padding: var(--space-1) var(--space-3);
+		background: transparent;
+		color: var(--brand-text);
+		border: 1px solid var(--brand-secondary);
+		border-radius: var(--radius);
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.star.on {
+		background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+		border-color: var(--brand-primary);
+		color: var(--brand-primary);
 	}
 	.floor-head {
 		display: flex;
