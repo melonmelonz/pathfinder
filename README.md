@@ -7,7 +7,7 @@
 *A platform by [Pathfinder LiDAR Solutions](https://pathfinder-lidar.pages.dev).*
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3f6e98)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-127%20unit%20%2B%2019%20e2e%20passing-2e8b57)](#testing-tdd)
+[![Tests](https://img.shields.io/badge/tests-164%20unit%20%2B%2045%20e2e%20passing-2e8b57)](#testing-tdd)
 [![Stack](https://img.shields.io/badge/SvelteKit-Cloudflare-6fa8d4)](#architecture)
 [![3D](https://img.shields.io/badge/3D-Gaussian%20Splats%20(SPZ)-a9cce3)](#3d-scans)
 [![Edition](https://img.shields.io/badge/model-open%20core-c4e2f5)](#editions)
@@ -83,9 +83,9 @@ Fourteen epics define the product. Status reflects what is built in this repo to
 | E8 3D scan viewer | mp4 + Spark splat viewer; 3D measurement; anchored markers; floor switching | Built |
 | E9 Collaboration | Anchored comments; resolve; @mentions; activity feed; batched email; share links | Built |
 | E10 Global search | FTS5 across facilities/buildings/projects/documents/markers | Built |
-| E11 Compliance and trust | NG911/NENA GeoJSON export; immutable audit; FERPA/DPA; trust page | Built (export + audit) |
-| E12 Accessibility | WCAG 2.1 AA; keyboard nav; screen-reader labels; non-visual map alternative; VPAT | Built (VPAT self-assessment) |
-| E13 Admin and platform ops | User + API-key management; audit viewer; settings; observability | Built (Sentry pending) |
+| E11 Compliance and trust | NG911/NENA GeoJSON export; immutable audit; staleness flags; trust page | Built |
+| E12 Accessibility | WCAG 2.1 AA contrast; keyboard nav; screen-reader labels; non-visual map alternative; VPAT | Built |
+| E13 Admin and platform ops | User + API-key management; audit viewer; settings; observability | Built |
 | E14 Quality and delivery harness | TDD: Vitest + Playwright screenshots; CI; deploy to CF | Built |
 
 <details>
@@ -199,7 +199,7 @@ production. The app fails closed if a real `JWT_SECRET` is not set in production
 Pathfinder is **test-first**. Every acceptance criterion in
 [`docs/03-acceptance-criteria.md`](./docs/03-acceptance-criteria.md) maps to a test; user-visible
 behavior is verified with Playwright screenshots committed to the repo. Current suite:
-**127 unit + 19 e2e passing**. The mapping from criteria to test-writing prompts is the
+**164 unit + 45 e2e passing**. The mapping from criteria to test-writing prompts is the
 [TDD Plan](./docs/04-tdd-plan.md) ([PDF](./docs/pdf/Pathfinder-TDD-Plan.pdf)). Rules every
 contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
 
