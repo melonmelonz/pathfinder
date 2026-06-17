@@ -6,8 +6,24 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { audit } from '$lib/server/session';
 import { isGlobalScope } from '$lib/server/hierarchy';
-import { getProject, transitionStatus } from '$lib/server/projects';
+import { getProject, transitionStatus, listMembers, listVersions, listApprovals } from '$lib/server/projects';
 import { isValidStatus } from '$lib/engines/workflow/status';
+
+// GET a project the caller may access (clients: only if a member - AC-4.5.1),
+// with members, versions and approvals.
+export const GET: RequestHandler = async ({ locals, platform, params }) => {
+	const env = platform?.env;
+	if (!env?.DB) error(500, 'Database binding unavailable.');
+	if (!locals.user) error(401, 'Not authenticated.');
+	const project = await getProject(env, locals.user, params.id);
+	if (!project) error(404, 'Project not found.');
+	const [members, versions, approvals] = await Promise.all([
+		listMembers(env, params.id),
+		listVersions(env, params.id),
+		listApprovals(env, params.id)
+	]);
+	return json({ project, members, versions, approvals });
+};
 
 export const PATCH: RequestHandler = async ({ locals, platform, params, request }) => {
 	const env = platform?.env;

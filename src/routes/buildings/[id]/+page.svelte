@@ -65,6 +65,38 @@
 		await invalidateAll();
 	}
 
+	// Create project (E4 AC-4.1.1/4.1.2)
+	let newProjectName = $state('');
+	let createProjErr = $state('');
+	async function createProject(e: Event) {
+		e.preventDefault();
+		createProjErr = '';
+		const res = await fetch('/api/projects', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ name: newProjectName, building_id: building.id })
+		});
+		if (res.ok) {
+			newProjectName = '';
+			await invalidateAll();
+		} else {
+			createProjErr = ((await res.json().catch(() => ({}))) as { message?: string }).message ?? 'Failed';
+		}
+	}
+
+	async function publishVersion(projectId: string) {
+		await fetch(`/api/projects/${projectId}/versions`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ notes: 'Published for review' })
+		});
+		await invalidateAll();
+	}
+	async function approveProject(projectId: string) {
+		await fetch(`/api/projects/${projectId}/approve`, { method: 'POST' });
+		await invalidateAll();
+	}
+
 	// Breadcrumb: Dashboard / [facility?] / [building-switcher]. The building
 	// segment lists sibling buildings under the same facility - the canonical
 	// switcher example (AC-3.2.1 / AC-3.2.2, research/04).
@@ -130,6 +162,13 @@
 	<MediaLibrary buildingId={building.id} media={data.media} canEdit={data.canEdit} />
 
 	<h2>Projects</h2>
+	{#if data.canEdit}
+		<form class="proj-create" onsubmit={createProject} data-testid="create-project">
+			<input placeholder="New project name" bind:value={newProjectName} required data-testid="new-project-name" />
+			<button type="submit" data-testid="create-project-submit">Create project</button>
+			{#if createProjErr}<span class="muted" data-testid="create-project-err">{createProjErr}</span>{/if}
+		</form>
+	{/if}
 	{#if projects.length > 0}
 		<ul class="list" data-testid="project-list">
 			{#each projects as p (p.id)}
@@ -147,6 +186,8 @@
 										data-testid={`transition-${t.to}`}>{t.label}</button
 									>
 								{/each}
+								<button onclick={() => publishVersion(p.id)} data-testid="publish-version">Publish version</button>
+								<button onclick={() => approveProject(p.id)} data-testid="approve-project">Approve</button>
 							</span>
 						{/if}
 					</div>
@@ -226,6 +267,30 @@
 	.actions button:disabled {
 		opacity: 0.5;
 		cursor: progress;
+	}
+	.proj-create {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+		margin-bottom: var(--space-2);
+	}
+	.proj-create input {
+		padding: var(--space-1) var(--space-2);
+		background: var(--brand-surface);
+		color: var(--brand-text);
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
+		border-radius: var(--radius);
+		flex: 1;
+		max-width: 22rem;
+	}
+	.proj-create button {
+		padding: var(--space-1) var(--space-3);
+		background: var(--brand-primary);
+		color: var(--brand-bg);
+		border: none;
+		border-radius: var(--radius);
+		font-weight: 600;
+		cursor: pointer;
 	}
 	.list {
 		list-style: none;
