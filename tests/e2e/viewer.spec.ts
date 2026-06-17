@@ -69,6 +69,44 @@ test('E6 map mode exposes marker tools and the NFPA export button', async ({ pag
 	await page.screenshot({ path: 'tests/e2e/__screenshots__/viewer-map-mode.png', fullPage: true });
 });
 
+test('E5 annotated-PDF export is available alongside JSON export', async ({ page }) => {
+	await login(page);
+	await page.goto(`/documents/${DOC}`);
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	await expect(page.getByTestId('export-json')).toBeVisible();
+	await expect(page.getByTestId('export-annotated')).toBeVisible();
+});
+
+test('E5 delete prompts a confirm dialog before removing a selected annotation', async ({ page }) => {
+	await login(page);
+	await page.goto(`/documents/${DOC}`);
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	await expect(page.getByTestId('annotation-count')).toHaveText(/4 annotations/);
+
+	// Select the seeded AED marker on the canvas, then press Delete -> confirm modal.
+	const canvas = page.getByTestId('annotation-canvas');
+	const box = (await canvas.boundingBox())!;
+	await page.getByTestId('tool-select').click();
+	await page.mouse.click(box.x + box.width * 0.32, box.y + box.height * 0.41 - 24); // marker body sits above the tip
+	await page.keyboard.press('Delete');
+	const modal = page.getByRole('dialog', { name: 'Confirm delete' });
+	await expect(modal).toBeVisible();
+	await page.getByTestId('delete-confirm').click();
+	await expect(page.getByTestId('annotation-count')).toHaveText(/3 annotations/);
+});
+
+test('E6 map mode exposes the crop tool, print-style picker and map undo', async ({ page }) => {
+	await login(page);
+	await page.goto(`/documents/${DOC}`);
+	await page.locator('html[data-hydrated="true"]').waitFor();
+	await page.getByTestId('map-mode-toggle').click();
+	await expect(page.getByTestId('map-tool-crop')).toBeVisible();
+	await expect(page.getByTestId('map-undo')).toBeVisible();
+	await expect(page.getByTestId('print-style')).toBeVisible();
+	await page.getByTestId('print-style').selectOption('blueprint');
+	await expect(page.getByTestId('print-style')).toHaveValue('blueprint');
+});
+
 test('E12 the floor has a non-visual text alternative for screen readers', async ({ page }) => {
 	await login(page);
 	await page.goto(`/documents/${DOC}`);

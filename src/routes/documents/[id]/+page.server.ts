@@ -27,12 +27,27 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		listCrops(env, params.id)
 	]);
 
+	// Facility civic data for the NFPA/map export header (best-effort join).
+	const facility = await env.DB.prepare(
+		`SELECT f.address, f.zip, f.phone, f.name FROM documents d
+		   JOIN projects p ON p.id = d.project_id
+		   JOIN buildings b ON b.id = p.building_id
+		   JOIN facilities f ON f.id = b.facility_id
+		  WHERE d.id = ?`
+	)
+		.bind(params.id)
+		.first<{ address: string | null; zip: string | null; phone: string | null; name: string }>();
+
 	return {
 		document,
 		annotations,
 		markers,
 		crops,
 		canEdit: isGlobalScope(locals.user),
-		fileUrl: `/api/documents/${params.id}/file`
+		fileUrl: `/api/documents/${params.id}/file`,
+		facilityName: facility?.name ?? null,
+		facilityAddress: facility?.address ?? null,
+		facilityZip: facility?.zip ?? null,
+		facilityPhone: facility?.phone ?? null
 	};
 };

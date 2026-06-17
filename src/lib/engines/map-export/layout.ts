@@ -110,6 +110,37 @@ export function alignExtraLabels(
 	return all.slice(1).map((p) => ({ x: p.x, y: p.y }));
 }
 
+/** Minimum normalized crop dimension (v1: 0.02). */
+export const MIN_CROP = 0.02;
+
+/** Normalize a drawn crop rect: fold negative width/height to a positive
+ *  top-left origin, clamp into [0,1], and reject (return null) anything smaller
+ *  than MIN_CROP in either axis (v1 crop draw rules). */
+export function normalizeCrop(
+	nx: number,
+	ny: number,
+	nw: number,
+	nh: number
+): { nx: number; ny: number; nw: number; nh: number } | null {
+	let x = nw < 0 ? nx + nw : nx;
+	let y = nh < 0 ? ny + nh : ny;
+	let w = Math.abs(nw);
+	let h = Math.abs(nh);
+	// clamp the box inside the page
+	if (x < 0) {
+		w += x;
+		x = 0;
+	}
+	if (y < 0) {
+		h += y;
+		y = 0;
+	}
+	if (x + w > 1) w = 1 - x;
+	if (y + h > 1) h = 1 - y;
+	if (w < MIN_CROP || h < MIN_CROP) return null;
+	return { nx: x, ny: y, nw: w, nh: h };
+}
+
 /** Floor line for the page footer/header (v1 _floorLine). */
 export function floorLine(crop: Crop | undefined, pageIndex: number, total: number): string {
 	return crop?.label || `Floor ${pageIndex} of ${total}`;

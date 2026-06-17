@@ -118,6 +118,58 @@ export function pointInPoly(nx: number, ny: number, pts: Array<{ nx: number; ny:
 	return inside;
 }
 
+type Pt = { nx: number; ny: number };
+
+/** Index of the polygon vertex within `tol` of (nx,ny), or -1 (for vertex drag/
+ *  delete hit-testing). */
+export function nearestVertex(pts: Pt[], nx: number, ny: number, tol = 0.02): number {
+	let best = -1;
+	let bestD = tol;
+	pts.forEach((p, i) => {
+		const d = Math.hypot(p.nx - nx, p.ny - ny);
+		if (d < bestD) {
+			bestD = d;
+			best = i;
+		}
+	});
+	return best;
+}
+
+/** The segment index whose midpoint is nearest (nx,ny) within `tol`, or -1
+ *  (for midpoint-insert hit-testing). Segment i joins vertex i and i+1 (wrap). */
+export function nearestMidpoint(pts: Pt[], nx: number, ny: number, tol = 0.02): number {
+	let best = -1;
+	let bestD = tol;
+	for (let i = 0; i < pts.length; i++) {
+		const a = pts[i];
+		const b = pts[(i + 1) % pts.length];
+		const mx = (a.nx + b.nx) / 2;
+		const my = (a.ny + b.ny) / 2;
+		const d = Math.hypot(mx - nx, my - ny);
+		if (d < bestD) {
+			bestD = d;
+			best = i;
+		}
+	}
+	return best;
+}
+
+/** Insert a vertex at the midpoint of segment `segIndex`. Returns a new array. */
+export function insertMidpoint(pts: Pt[], segIndex: number): Pt[] {
+	const a = pts[segIndex];
+	const b = pts[(segIndex + 1) % pts.length];
+	const mid = { nx: (a.nx + b.nx) / 2, ny: (a.ny + b.ny) / 2 };
+	const next = pts.slice();
+	next.splice(segIndex + 1, 0, mid);
+	return next;
+}
+
+/** Delete vertex `i`, keeping a minimum of 3 (returns the original if at 3). */
+export function deleteVertex(pts: Pt[], i: number): Pt[] {
+	if (pts.length <= 3) return pts;
+	return pts.filter((_, idx) => idx !== i);
+}
+
 /** Centroid (mean of vertices) of a polygon (v1 hallway centroid). */
 export function centroid(pts: Array<{ nx: number; ny: number }>): { nx: number; ny: number } {
 	if (pts.length === 0) return { nx: 0, ny: 0 };

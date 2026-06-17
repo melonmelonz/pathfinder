@@ -10,7 +10,8 @@
 	import { newHistory, pushUndo, undo as doUndo, redo as doRedo } from '$lib/engines/2d-annotate/undo';
 	import { hitTest } from '$lib/engines/2d-annotate/hittest';
 	import { commentNumbers, buildExport } from '$lib/engines/2d-annotate/export-json';
-	import { renderAnnotations } from '$lib/engines/2d-annotate/render';
+	import { renderAnnotations, drawAnnotation } from '$lib/engines/2d-annotate/render';
+	import { translateAnnotation, clampAnnotation } from '$lib/engines/2d-annotate/edit';
 	import {
 		MARKER_TOOLS,
 		MIN_SHAPE_PX,
@@ -22,10 +23,17 @@
 		MAP_TYPES,
 		reNumberMarkers,
 		hallwayColor,
+		nearestVertex,
+		nearestMidpoint,
+		insertMidpoint,
+		deleteVertex,
+		centroid,
 		type MapMarker,
 		type MapMarkerType
 	} from '$lib/engines/map-export/markers';
-	import { buildMapPdf, exportFilename } from '$lib/engines/map-export/export-pdf';
+	import { normalizeCrop, type Crop } from '$lib/engines/map-export/layout';
+	import { buildMapPdf, exportFilename, type PrintStyle } from '$lib/engines/map-export/export-pdf';
+	import { buildAnnotatedPdf, EXPORT_SCALE } from '$lib/engines/2d-annotate/export-annotated';
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte';
 	import { buildMapTextAlternative } from '$lib/engines/a11y/map-text';
 
@@ -70,27 +78,53 @@
 	let area: HTMLDivElement;
 
 	// --- map layer (E6) ---
-	const MAP_TOOLS: { id: 'select' | MapMarkerType; key: string; label: string }[] = [
+	const MAP_TOOLS: { id: 'select' | 'crop' | MapMarkerType; key: string; label: string }[] = [
 		{ id: 'select', key: 'v', label: 'Select' },
 		{ id: 'stairs', key: 's', label: 'Stairs' },
 		{ id: 'hallway', key: 'h', label: 'Hallway' },
 		{ id: 'door', key: 'd', label: 'Door' },
 		{ id: 'elevator', key: 'e', label: 'Elevator' },
-		{ id: 'room', key: 'o', label: 'Room' }
+		{ id: 'room', key: 'o', label: 'Room' },
+		{ id: 'crop', key: 'c', label: 'Crop' }
 	];
+	const PRINT_STYLES: PrintStyle[] = ['command', 'blueprint', 'field'];
 	let mapMode = $state(false);
-	let mapTool = $state<'select' | MapMarkerType>('stairs');
+	let mapTool = $state<'select' | 'crop' | MapMarkerType>('stairs');
 	let markers = $state<MapMarker[]>([]);
+	let crops = $state<Record<number, Crop>>({});
 	let hallwayPts = $state<Array<{ nx: number; ny: number }>>([]);
 	let mapDirty = $state(false);
 	let exporting = $state(false);
 	let selectedMapId = $state<string | null>(null);
+	let printStyle = $state<PrintStyle>('command');
+	const mapHistory = newHistory();
 
-	// drawing scratch
+	// drawing scratch (annotation layer)
 	let drawing = false;
 	let startX = 0;
 	let startY = 0;
 	let points: Array<[number, number]> = [];
+	// select+drag (annotation layer)
+	let draggingAnn = false;
+	let dragLastNx = 0;
+	let dragLastNy = 0;
+	let dragMoved = false;
+	// pan (both layers)
+	let panning = false;
+	let panStartX = 0;
+	let panStartY = 0;
+	let panScrollL = 0;
+	let panScrollT = 0;
+	let spaceHeld = $state(false);
+	// map editing scratch
+	let cropStart: { nx: number; ny: number } | null = null;
+	let cropDrawing = false;
+	let mapDragKind: 'marker' | 'vertex' | null = null;
+	let mapDragVertex = -1;
+	let mapDragLast = { nx: 0, ny: 0 };
+	let mapMoved = false;
+	// delete-confirm modal
+	let confirmDeleteOpen = $state(false);
 
 	function deserialize(rows: typeof data.annotations): Annotation[] {
 		return rows.map((r) => ({
@@ -156,6 +190,35 @@
 				ctx.restore();
 			}
 			drawMapChip(ctx, m.nx * cw, m.ny * ch, m.label, color, m.id === selectedMapId);
+			// vertex + midpoint handles for the selected hallway (rich editing)
+			if (m.id === selectedMapId && m.type === 'hallway' && m.points) {
+				ctx.save();
+				m.points.forEach((p) => {
+					ctx.fillStyle = '#fff';
+					ctx.strokeStyle = '#16A34A';
+					ctx.lineWidth = 2;
+					ctx.beginPath();
+					ctx.arc(p.nx * cw, p.ny * ch, 5, 0, Math.PI * 2);
+					ctx.fill();
+					ctx.stroke();
+				});
+				// midpoints (hollow, for insert)
+				for (let i = 0; i < m.points.length; i++) {
+					const a = m.points[i];
+					const b = m.points[(i + 1) % m.points.length];
+					ctx.fillStyle = 'rgba(22,163,74,0.5)';
+					ctx.beginPath();
+					ctx.arc(((a.nx + b.nx) / 2) * cw, ((a.ny + b.ny) / 2) * ch, 3.5, 0, Math.PI * 2);
+					ctx.fill();
+				}
+				ctx.restore();
+			}
+		}
+		// crop for this page (dark strips + dashed rect)
+		const crop = crops[currentPage];
+		if (crop) drawCrop(ctx, crop, cw, ch);
+		if (cropDrawing && cropStart) {
+			drawCrop(ctx, { nx: cropStart.nx, ny: cropStart.ny, nw: cropPreview.nw, nh: cropPreview.nh }, cw, ch, true);
 		}
 		// in-progress hallway
 		if (hallwayPts.length) {
@@ -169,6 +232,35 @@
 			ctx.stroke();
 			ctx.restore();
 		}
+	}
+
+	let cropPreview = { nw: 0, nh: 0 };
+
+	function drawCrop(
+		ctx: CanvasRenderingContext2D,
+		crop: { nx: number; ny: number; nw: number; nh: number },
+		cw: number,
+		ch: number,
+		preview = false
+	) {
+		const x = crop.nx * cw;
+		const y = crop.ny * ch;
+		const w = crop.nw * cw;
+		const h = crop.nh * ch;
+		ctx.save();
+		if (!preview) {
+			// dark strips outside the crop
+			ctx.fillStyle = 'rgba(10,19,30,0.45)';
+			ctx.fillRect(0, 0, cw, y);
+			ctx.fillRect(0, y + h, cw, ch - (y + h));
+			ctx.fillRect(0, y, x, h);
+			ctx.fillRect(x + w, y, cw - (x + w), h);
+		}
+		ctx.strokeStyle = '#6fa8d4';
+		ctx.setLineDash([6, 4]);
+		ctx.lineWidth = 2;
+		ctx.strokeRect(x, y, w, h);
+		ctx.restore();
 	}
 
 	function drawMapChip(ctx: CanvasRenderingContext2D, x: number, y: number, label: string, color: string, sel: boolean) {
@@ -229,9 +321,17 @@
 		ctx.fillText('Demo floorplan - object storage not configured (E7/S4)', w * 0.1, h * 0.06);
 	}
 
+	function deserializeCrops(rows: typeof data.crops): Record<number, Crop> {
+		const out: Record<number, Crop> = {};
+		for (const c of rows)
+			out[c.page] = { nx: c.nx, ny: c.ny, nw: c.nw, nh: c.nh, label: c.label ?? undefined, printOrder: c.print_order };
+		return out;
+	}
+
 	onMount(async () => {
 		annotations = deserialize(data.annotations);
 		markers = reNumberMarkers(deserializeMarkers(data.markers));
+		crops = deserializeCrops(data.crops);
 		try {
 			const pdfjs = await import('pdfjs-dist');
 			pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -264,13 +364,34 @@
 		return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 	}
 
+	function startPan(e: PointerEvent) {
+		panning = true;
+		panStartX = e.clientX;
+		panStartY = e.clientY;
+		panScrollL = area.scrollLeft;
+		panScrollT = area.scrollTop;
+	}
+
 	function onPointerDown(e: PointerEvent) {
-		if (!data.canEdit || tool === 'pan') return;
+		// Pan: pan tool, held space, or middle mouse - works regardless of edit rights.
+		if (tool === 'pan' || spaceHeld || e.button === 1) {
+			startPan(e);
+			return;
+		}
+		if (!data.canEdit) return;
 		const p = screenToCanvas(e.clientX, e.clientY, annCanvas.getBoundingClientRect(), dims());
 		startX = p.x;
 		startY = p.y;
 		if (tool === 'select') {
 			selectedId = hitTest(annotations, p.x, p.y, dims());
+			if (selectedId) {
+				// begin a potential drag-move; snapshot is pushed on first real move
+				draggingAnn = true;
+				dragMoved = false;
+				const n = toNorm(p.x, p.y, 0, 0, dims());
+				dragLastNx = n.nx;
+				dragLastNy = n.ny;
+			}
 			redraw();
 			return;
 		}
@@ -290,6 +411,31 @@
 	}
 
 	function onPointerMove(e: PointerEvent) {
+		if (panning) {
+			area.scrollLeft = panScrollL - (e.clientX - panStartX);
+			area.scrollTop = panScrollT - (e.clientY - panStartY);
+			return;
+		}
+		if (draggingAnn && selectedId) {
+			const p = screenToCanvas(e.clientX, e.clientY, annCanvas.getBoundingClientRect(), dims());
+			const n = toNorm(p.x, p.y, 0, 0, dims());
+			const dnx = n.nx - dragLastNx;
+			const dny = n.ny - dragLastNy;
+			if (!dragMoved && (Math.abs(dnx) > 0.001 || Math.abs(dny) > 0.001)) {
+				pushUndo(history, annotations); // snapshot once, on the first real move
+				dragMoved = true;
+			}
+			if (dragMoved) {
+				annotations = annotations.map((a) =>
+					a.id === selectedId ? clampAnnotation(translateAnnotation(a, dnx, dny)) : a
+				);
+				dragLastNx = n.nx;
+				dragLastNy = n.ny;
+				dirty = true;
+				redraw();
+			}
+			return;
+		}
 		if (!drawing) return;
 		const p = screenToCanvas(e.clientX, e.clientY, annCanvas.getBoundingClientRect(), dims());
 		const ctx = annCanvas.getContext('2d')!;
@@ -311,6 +457,14 @@
 	}
 
 	function onPointerUp(e: PointerEvent) {
+		if (panning) {
+			panning = false;
+			return;
+		}
+		if (draggingAnn) {
+			draggingAnn = false;
+			return;
+		}
 		if (!drawing) return;
 		drawing = false;
 		const p = screenToCanvas(e.clientX, e.clientY, annCanvas.getBoundingClientRect(), dims());
@@ -347,13 +501,43 @@
 			redraw();
 		}
 	}
-	function deleteSelected() {
+	function requestDelete() {
+		if (mapMode ? selectedMapId : selectedId) confirmDeleteOpen = true;
+	}
+	function confirmDelete() {
+		confirmDeleteOpen = false;
+		if (mapMode) {
+			deleteMarker();
+			return;
+		}
 		if (!selectedId) return;
 		pushUndo(history, annotations);
 		annotations = annotations.filter((a) => a.id !== selectedId);
 		selectedId = null;
 		dirty = true;
 		redraw();
+	}
+
+	// Map-layer undo/redo (separate stack from annotations).
+	function pushMapUndo() {
+		pushUndo(mapHistory, markers);
+	}
+	function undoMap() {
+		const prev = doUndo(mapHistory, markers);
+		if (prev) {
+			markers = reNumberMarkers(prev);
+			selectedMapId = null;
+			mapDirty = true;
+			renderMap();
+		}
+	}
+	function redoMap() {
+		const next = doRedo(mapHistory, markers);
+		if (next) {
+			markers = reNumberMarkers(next);
+			mapDirty = true;
+			renderMap();
+		}
 	}
 
 	async function save() {
@@ -396,13 +580,54 @@
 		return 'mk' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 	}
 
+	const selectedMarker = () => markers.find((m) => m.id === selectedMapId) ?? null;
+
 	function onMapPointerDown(e: PointerEvent) {
+		if (tool === 'pan' || spaceHeld || e.button === 1) {
+			startPan(e);
+			return;
+		}
 		if (!data.canEdit) return;
 		const p = screenToCanvas(e.clientX, e.clientY, mapCanvas.getBoundingClientRect(), dims());
 		const nx = p.x / mapCanvas.width;
 		const ny = p.y / mapCanvas.height;
+		mapMoved = false;
+
+		if (mapTool === 'crop') {
+			cropStart = { nx, ny };
+			cropDrawing = true;
+			cropPreview = { nw: 0, nh: 0 };
+			return;
+		}
 		if (mapTool === 'select') {
-			selectedMapId = nearestMarker(nx, ny);
+			// rich hallway editing: vertex drag / midpoint insert on the selected polygon
+			const sel = selectedMarker();
+			if (sel && sel.type === 'hallway' && sel.points) {
+				const vi = nearestVertex(sel.points, nx, ny);
+				if (vi >= 0) {
+					pushMapUndo();
+					mapDragKind = 'vertex';
+					mapDragVertex = vi;
+					return;
+				}
+				const mi = nearestMidpoint(sel.points, nx, ny);
+				if (mi >= 0) {
+					pushMapUndo();
+					updateSelected((m) => ({ ...m, points: insertMidpoint(m.points!, mi) }));
+					mapDragKind = 'vertex';
+					mapDragVertex = mi + 1;
+					mapDirty = true;
+					renderMap();
+					return;
+				}
+			}
+			const hit = nearestMarker(nx, ny);
+			selectedMapId = hit;
+			if (hit) {
+				pushMapUndo();
+				mapDragKind = 'marker';
+				mapDragLast = { nx, ny };
+			}
 			renderMap();
 			return;
 		}
@@ -411,7 +636,8 @@
 			renderMap();
 			return;
 		}
-		// point marker
+		// point marker placement
+		pushMapUndo();
 		markers = reNumberMarkers([
 			...markers,
 			{ id: mapId(), type: mapTool, label: '', page: currentPage, nx, ny, createdAt: new Date().toISOString() }
@@ -420,8 +646,121 @@
 		renderMap();
 	}
 
+	function updateSelected(fn: (m: MapMarker) => MapMarker) {
+		markers = markers.map((m) => (m.id === selectedMapId ? fn(m) : m));
+	}
+
+	function onMapPointerMove(e: PointerEvent) {
+		if (panning) {
+			area.scrollLeft = panScrollL - (e.clientX - panStartX);
+			area.scrollTop = panScrollT - (e.clientY - panStartY);
+			return;
+		}
+		const p = screenToCanvas(e.clientX, e.clientY, mapCanvas.getBoundingClientRect(), dims());
+		const nx = p.x / mapCanvas.width;
+		const ny = p.y / mapCanvas.height;
+		if (cropDrawing && cropStart) {
+			cropPreview = { nw: nx - cropStart.nx, nh: ny - cropStart.ny };
+			renderMap();
+			return;
+		}
+		if (mapDragKind === 'marker' && selectedMapId) {
+			const dnx = nx - mapDragLast.nx;
+			const dny = ny - mapDragLast.ny;
+			mapDragLast = { nx, ny };
+			mapMoved = true;
+			updateSelected((m) => {
+				if (m.type === 'hallway' && m.points) {
+					const pts = m.points.map((pt) => ({ nx: pt.nx + dnx, ny: pt.ny + dny }));
+					const c = centroid(pts);
+					return { ...m, points: pts, nx: c.nx, ny: c.ny };
+				}
+				return { ...m, nx: m.nx + dnx, ny: m.ny + dny };
+			});
+			mapDirty = true;
+			renderMap();
+			return;
+		}
+		if (mapDragKind === 'vertex' && selectedMapId) {
+			mapMoved = true;
+			updateSelected((m) => {
+				if (!m.points) return m;
+				const pts = m.points.map((pt, i) => (i === mapDragVertex ? { nx, ny } : pt));
+				const c = centroid(pts);
+				return { ...m, points: pts, nx: c.nx, ny: c.ny };
+			});
+			mapDirty = true;
+			renderMap();
+		}
+	}
+
+	function onMapPointerUp() {
+		if (panning) {
+			panning = false;
+			return;
+		}
+		if (cropDrawing && cropStart) {
+			cropDrawing = false;
+			const norm = normalizeCrop(cropStart.nx, cropStart.ny, cropPreview.nw, cropPreview.nh);
+			cropStart = null;
+			if (norm) {
+				const existing = crops[currentPage];
+				crops = { ...crops, [currentPage]: { ...norm, label: existing?.label, printOrder: existing?.printOrder ?? currentPage } };
+				saveCropRemote(currentPage);
+			}
+			renderMap();
+			return;
+		}
+		mapDragKind = null;
+		mapDragVertex = -1;
+	}
+
+	function onMapDblClick(e: MouseEvent) {
+		if (!data.canEdit || mapTool !== 'select') return;
+		const p = screenToCanvas(e.clientX, e.clientY, mapCanvas.getBoundingClientRect(), dims());
+		const nx = p.x / mapCanvas.width;
+		const ny = p.y / mapCanvas.height;
+		const sel = selectedMarker();
+		// delete a hallway vertex on dbl-click
+		if (sel && sel.type === 'hallway' && sel.points) {
+			const vi = nearestVertex(sel.points, nx, ny);
+			if (vi >= 0) {
+				pushMapUndo();
+				updateSelected((m) => ({ ...m, points: deleteVertex(m.points!, vi) }));
+				updateSelected((m) => ({ ...m, ...centroid(m.points!) }));
+				mapDirty = true;
+				renderMap();
+				return;
+			}
+		}
+		// otherwise edit the label of the marker under the cursor
+		const hit = nearestMarker(nx, ny);
+		if (hit) {
+			selectedMapId = hit;
+			const cur = markers.find((m) => m.id === hit);
+			const label = window.prompt('Marker label:', cur?.label ?? '');
+			if (label !== null) {
+				pushMapUndo();
+				updateSelected((m) => ({ ...m, label, labelPinned: true }));
+				mapDirty = true;
+				renderMap();
+			}
+		}
+	}
+
+	async function saveCropRemote(page: number) {
+		const c = crops[page];
+		if (!c) return;
+		await fetch(`/api/documents/${data.document.id}/crops`, {
+			method: 'PUT',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ page, nx: c.nx, ny: c.ny, nw: c.nw, nh: c.nh, label: c.label, printOrder: c.printOrder })
+		});
+	}
+
 	function commitHallway() {
 		if (hallwayPts.length < 3) return;
+		pushMapUndo();
 		const cx = hallwayPts.reduce((s, p) => s + p.nx, 0) / hallwayPts.length;
 		const cy = hallwayPts.reduce((s, p) => s + p.ny, 0) / hallwayPts.length;
 		markers = reNumberMarkers([
@@ -449,6 +788,7 @@
 
 	function deleteMarker() {
 		if (!selectedMapId) return;
+		pushMapUndo();
 		markers = reNumberMarkers(markers.filter((m) => m.id !== selectedMapId));
 		selectedMapId = null;
 		mapDirty = true;
@@ -479,28 +819,92 @@
 		if (res.ok) mapDirty = false;
 	}
 
+	// Render any page to an offscreen canvas (PDF render or demo background) at a
+	// given scale, returning the bare floorplan canvas. Shared by both exports.
+	async function renderPageOffscreen(n: number, atScale: number): Promise<HTMLCanvasElement> {
+		const c = document.createElement('canvas');
+		if (demoMode || !pdfDoc) {
+			c.width = Math.round(pdfCanvas.width || 1000);
+			c.height = Math.round(pdfCanvas.height || 720);
+			c.getContext('2d')!.drawImage(pdfCanvas, 0, 0, c.width, c.height);
+			return c;
+		}
+		const page = await pdfDoc.getPage(n);
+		const viewport = page.getViewport({ scale: atScale });
+		c.width = viewport.width;
+		c.height = viewport.height;
+		await page.render({ canvasContext: c.getContext('2d')!, viewport }).promise;
+		return c;
+	}
+
+	function pagesWithContent(): number[] {
+		const set = new Set<number>([currentPage]);
+		for (const m of markers) set.add(m.page);
+		for (const p of Object.keys(crops)) set.add(Number(p));
+		return [...set].sort((a, b) => a - b);
+	}
+
 	async function exportMapPdf() {
 		exporting = true;
 		try {
 			const { default: JsPDF } = await import('jspdf');
-			// Compose the floorplan image from the pdf layer for the current page.
-			const composite = document.createElement('canvas');
-			composite.width = pdfCanvas.width;
-			composite.height = pdfCanvas.height;
-			composite.getContext('2d')!.drawImage(pdfCanvas, 0, 0);
-			const imageDataUrl = composite.toDataURL('image/jpeg', 0.95);
-			const pageMarkers = markers.filter((m) => m.page === currentPage);
+			const pageNums = pagesWithContent();
+			const pageInputs = [];
+			for (const n of pageNums) {
+				const canvas = await renderPageOffscreen(n, 2.0);
+				pageInputs.push({
+					page: n,
+					imageDataUrl: canvas.toDataURL('image/jpeg', 0.95),
+					canvasW: canvas.width,
+					canvasH: canvas.height,
+					markers: markers.filter((m) => m.page === n)
+				});
+			}
 			const doc = buildMapPdf(
 				(orientation, size) => new JsPDF({ orientation, unit: 'mm', format: size }),
-				[{ page: currentPage, imageDataUrl, canvasW: pdfCanvas.width, canvasH: pdfCanvas.height, markers: pageMarkers }],
-				{},
+				pageInputs,
+				crops,
 				markers,
 				{
 					facilityName: data.document.filename.replace(/\.[^.]+$/, ''),
+					address: data.facilityAddress ?? undefined,
+					zip: data.facilityZip ?? undefined,
+					phone: data.facilityPhone ?? undefined,
 					brandName: 'Pathfinder'
-				}
+				},
+				printStyle
 			);
 			doc.save(exportFilename(data.document.filename));
+		} finally {
+			exporting = false;
+		}
+	}
+
+	// Annotated PDF export (E5): every page composited with its annotations.
+	async function exportAnnotated() {
+		exporting = true;
+		try {
+			const { default: JsPDF } = await import('jspdf');
+			const pageNums = [];
+			for (let i = 1; i <= totalPages; i++) pageNums.push(i);
+			const pages = [];
+			for (const n of pageNums) {
+				const base = await renderPageOffscreen(n, EXPORT_SCALE);
+				const composite = document.createElement('canvas');
+				composite.width = base.width;
+				composite.height = base.height;
+				const cx = composite.getContext('2d')!;
+				cx.drawImage(base, 0, 0);
+				// draw this page's annotations on top via the engine renderer
+				const dimsN = { width: composite.width, height: composite.height };
+				for (const a of annotations) {
+					if (a.page !== n) continue;
+					drawAnnotation(cx, a, dimsN, { commentNum: nums.get(a.id) });
+				}
+				pages.push({ imageDataUrl: composite.toDataURL('image/jpeg', 0.9), wPx: composite.width, hPx: composite.height });
+			}
+			const doc = buildAnnotatedPdf((orientation, size) => new JsPDF({ orientation, unit: 'mm', format: size }), pages);
+			doc.save(data.document.filename.replace(/\.[^.]+$/, '') + '_annotated.pdf');
 		} finally {
 			exporting = false;
 		}
@@ -540,7 +944,21 @@
 	function onKey(e: KeyboardEvent) {
 		const t = e.target as HTMLElement;
 		if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+		if (e.key === ' ' || e.code === 'Space') {
+			spaceHeld = true;
+			return;
+		}
 		if (mapMode) {
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+				e.preventDefault();
+				undoMap();
+				return;
+			}
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+				e.preventDefault();
+				redoMap();
+				return;
+			}
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
 				e.preventDefault();
 				saveMarkers();
@@ -556,7 +974,7 @@
 				return;
 			}
 			if (e.key === 'Delete' || e.key === 'Backspace') {
-				deleteMarker();
+				requestDelete();
 				return;
 			}
 			if (e.key === 'ArrowRight') gotoPage(currentPage + 1);
@@ -581,7 +999,7 @@
 			return;
 		}
 		if (e.key === 'Delete' || e.key === 'Backspace') {
-			deleteSelected();
+			requestDelete();
 			return;
 		}
 		if (e.key === 'ArrowRight') gotoPage(currentPage + 1);
@@ -590,13 +1008,25 @@
 		if (match) tool = match.id;
 	}
 
+	function onKeyUp(e: KeyboardEvent) {
+		if (e.key === ' ' || e.code === 'Space') spaceHeld = false;
+	}
+
+	// Ctrl/Cmd + wheel zoom (v1), centred on the viewport.
+	function onWheel(e: WheelEvent) {
+		if (!(e.ctrlKey || e.metaKey)) return;
+		e.preventDefault();
+		scale = clampScale(scale + (e.deltaY < 0 ? 0.1 : -0.1));
+		renderPage(currentPage);
+	}
+
 	function setZoom(delta: number) {
 		scale = clampScale(scale + delta);
 		renderPage(currentPage);
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onkeyup={onKeyUp} />
 
 <section class="viewer">
 	<header class="vhead">
@@ -616,11 +1046,19 @@
 				</button>
 			{/if}
 			<button onclick={exportJson} data-testid="export-json">Export JSON</button>
+			<button onclick={exportAnnotated} disabled={exporting} data-testid="export-annotated">Export annotated PDF</button>
 			<button
 				class:active={mapMode}
 				onclick={toggleMapMode}
 				data-testid="map-mode-toggle">{mapMode ? 'Annotate mode' : 'Map mode'}</button
 			>
+			{#if mapMode}
+				<label class="style-pick">Style
+					<select bind:value={printStyle} data-testid="print-style">
+						{#each PRINT_STYLES as s (s)}<option value={s}>{s}</option>{/each}
+					</select>
+				</label>
+			{/if}
 			<button onclick={exportMapPdf} disabled={exporting} data-testid="export-map">
 				{exporting ? 'Exporting...' : 'Export NFPA map'}
 			</button>
@@ -663,6 +1101,8 @@
 				{#if mapTool === 'hallway' && hallwayPts.length >= 3}
 					<button onclick={commitHallway} data-testid="close-hallway">Close polygon</button>
 				{/if}
+				<button onclick={undoMap} data-testid="map-undo">Undo</button>
+				<button onclick={redoMap} data-testid="map-redo">Redo</button>
 				<button
 					class="primary"
 					onclick={saveMarkers}
@@ -672,13 +1112,14 @@
 			</aside>
 		{/if}
 
-		<div class="canvas-area" bind:this={area} data-testid="canvas-area">
+		<div class="canvas-area" bind:this={area} data-testid="canvas-area" onwheel={onWheel}>
 			<div class="canvas-stack">
 				<canvas bind:this={pdfCanvas} class="pdf-layer"></canvas>
 				<canvas
 					bind:this={annCanvas}
 					class="ann-layer"
 					class:hidden-layer={mapMode}
+					class:panning={tool === 'pan' || spaceHeld}
 					data-testid="annotation-canvas"
 					onpointerdown={onPointerDown}
 					onpointermove={onPointerMove}
@@ -690,6 +1131,9 @@
 					class:hidden-layer={!mapMode}
 					data-testid="map-canvas"
 					onpointerdown={onMapPointerDown}
+					onpointermove={onMapPointerMove}
+					onpointerup={onMapPointerUp}
+					ondblclick={onMapDblClick}
 				></canvas>
 			</div>
 			<footer class="pager">
@@ -716,6 +1160,31 @@
 			<CommentsPanel documentId={data.document.id} {selectedId} canEdit={data.canEdit} />
 		{/if}
 	</div>
+
+	{#if confirmDeleteOpen}
+		<div
+			class="modal-backdrop"
+			role="presentation"
+			onclick={() => (confirmDeleteOpen = false)}
+			onkeydown={(e) => e.key === 'Escape' && (confirmDeleteOpen = false)}
+		>
+			<div
+				class="modal"
+				role="dialog"
+				aria-modal="true"
+				aria-label="Confirm delete"
+				tabindex="-1"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<p>Delete the selected {mapMode ? 'marker' : 'annotation'}? This can be undone.</p>
+				<div class="modal-actions">
+					<button onclick={() => (confirmDeleteOpen = false)} data-testid="delete-cancel">Cancel</button>
+					<button class="danger" onclick={confirmDelete} data-testid="delete-confirm">Delete</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 </section>
 
 <style>
@@ -826,6 +1295,51 @@
 	}
 	.hidden-layer {
 		pointer-events: none;
+	}
+	.ann-layer.panning {
+		cursor: grab;
+	}
+	.style-pick {
+		font-size: 0.75rem;
+		color: var(--brand-muted);
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 50;
+	}
+	.modal {
+		background: var(--brand-surface);
+		border: 1px solid color-mix(in srgb, var(--brand-secondary) 45%, transparent);
+		border-radius: var(--radius);
+		padding: var(--space-4);
+		max-width: 22rem;
+	}
+	.modal-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+	}
+	.modal button {
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius);
+		border: 1px solid var(--brand-secondary);
+		background: transparent;
+		color: var(--brand-text);
+		cursor: pointer;
+	}
+	.modal .danger {
+		background: #b22234;
+		color: #fff;
+		border-color: #b22234;
 	}
 	.pager {
 		display: flex;

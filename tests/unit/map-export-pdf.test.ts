@@ -8,13 +8,16 @@ import { buildMapPdf, exportFilename } from '../../src/lib/engines/map-export/ex
 import type { MapMarker } from '../../src/lib/engines/map-export/markers';
 
 function fakeDoc() {
-	const calls = { addPage: 0, addImage: 0, circle: 0, text: [] as string[], pageSizes: [] as unknown[] };
+	const calls = { addPage: 0, addImage: 0, circle: 0, pins: 0, text: [] as string[], pageSizes: [] as unknown[] };
 	const doc: Record<string, (...a: unknown[]) => unknown> = {};
 	for (const m of ['setFillColor', 'rect', 'setTextColor', 'setFont', 'setFontSize', 'setDrawColor', 'setLineWidth', 'line']) {
 		doc[m] = vi.fn();
 	}
 	doc.addImage = vi.fn(() => calls.addImage++);
 	doc.circle = vi.fn(() => calls.circle++);
+	// style-specific pin shapes (command=roundedRect, field=diamond via triangle)
+	doc.roundedRect = vi.fn(() => calls.pins++);
+	doc.triangle = vi.fn(() => calls.pins++);
 	doc.text = vi.fn((t: unknown) => {
 		calls.text.push(String(t));
 	});
@@ -54,10 +57,27 @@ describe('buildMapPdf', () => {
 		expect(made).toBe(1); // first page via factory, not addPage
 		expect(calls.addPage).toBe(0);
 		expect(calls.addImage).toBe(1);
-		// marker draws a shadow circle + fill circle + legend chip circle
-		expect(calls.circle).toBeGreaterThanOrEqual(2);
+		// command style: marker pin = rounded rect (shadow + fill) -> 2 pin draws
+		expect(calls.pins).toBeGreaterThanOrEqual(2);
+		// legend chip is still a circle
+		expect(calls.circle).toBeGreaterThanOrEqual(1);
 		expect(calls.text.join(' ')).toContain('WAHS Main');
 		expect(calls.text.join(' ')).toContain('LEGEND');
+	});
+
+	it('field style draws diamond pins (triangles), not rounded rects', () => {
+		const { doc, calls } = fakeDoc();
+		const rr = doc.roundedRect as ReturnType<typeof vi.fn>;
+		buildMapPdf(
+			() => doc as never,
+			[{ page: 1, imageDataUrl: img, canvasW: 1000, canvasH: 800, markers: [mk({})] }],
+			{},
+			[mk({})],
+			{ facilityName: 'X' },
+			'field'
+		);
+		expect(calls.pins).toBeGreaterThanOrEqual(2); // 2 triangles per diamond, x2 passes
+		expect(rr).not.toHaveBeenCalled(); // field uses diamonds, not rects
 	});
 
 	it('adds a page per extra floor and orders by printOrder', () => {

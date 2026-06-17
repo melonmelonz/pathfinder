@@ -19,6 +19,7 @@ import {
 	LEG_ICON_W,
 	type PrintStyle
 } from './legend';
+export type { PrintStyle };
 import {
 	orderPages,
 	cropPx,
@@ -49,11 +50,33 @@ export interface ExportHeader {
 const PIN_R = 5; // mm, v1
 
 type Rgb = [number, number, number];
-const COMMAND: { header: Rgb; accent: Rgb; text: Rgb } = {
-	header: [0, 40, 104], // navy
-	accent: [178, 34, 52], // red
-	text: [20, 30, 45]
+type Palette = { header: Rgb; accent: Rgb; text: Rgb; shape: 'rect' | 'badge' | 'diamond'; name: string };
+
+// Per-style palettes + pin shape (v1 PRINT_STYLES: command/blueprint/field).
+const STYLES: Record<PrintStyle, Palette> = {
+	command: { header: [0, 40, 104], accent: [178, 34, 52], text: [20, 30, 45], shape: 'rect', name: 'Command' },
+	blueprint: { header: [47, 79, 63], accent: [201, 162, 39], text: [30, 41, 35], shape: 'badge', name: 'Sage' },
+	field: { header: [200, 90, 20], accent: [40, 40, 40], text: [40, 30, 20], shape: 'diamond', name: 'Alert' }
 };
+
+/** Draw a style-specific marker pin centred at (x,y) in mm. */
+function drawPin(d: jsPDF, x: number, y: number, rgb: Rgb, shape: Palette['shape']) {
+	// shadow
+	d.setFillColor(0, 0, 0);
+	if (shape === 'diamond') drawDiamond(d, x + 0.4, y + 0.4, PIN_R);
+	else if (shape === 'rect') d.roundedRect(x - PIN_R + 0.4, y - PIN_R + 0.4, PIN_R * 2, PIN_R * 2, 1, 1, 'F');
+	else d.circle(x + 0.4, y + 0.4, PIN_R, 'F');
+	// body
+	d.setFillColor(rgb[0], rgb[1], rgb[2]);
+	if (shape === 'diamond') drawDiamond(d, x, y, PIN_R);
+	else if (shape === 'rect') d.roundedRect(x - PIN_R, y - PIN_R, PIN_R * 2, PIN_R * 2, 1, 1, 'F');
+	else d.circle(x, y, PIN_R, 'F');
+}
+
+function drawDiamond(d: jsPDF, x: number, y: number, r: number) {
+	d.triangle(x, y - r, x + r, y, x, y + r, 'F');
+	d.triangle(x, y - r, x - r, y, x, y + r, 'F');
+}
 
 const typeMeta = Object.fromEntries(
 	Object.entries(MAP_TYPES).map(([k, v]) => [k, { label: v.label, color: v.color }])
@@ -91,9 +114,10 @@ export function buildMapPdf(
 		if (!doc) doc = mkDoc(orientation, [sz.wMm, sz.hMm]);
 		else doc.addPage([sz.wMm, sz.hMm], orientation);
 		const d = doc;
+		const pal = STYLES[style];
 
 		// Header band.
-		d.setFillColor(...COMMAND.header);
+		d.setFillColor(...pal.header);
 		d.rect(0, 0, sz.wMm, HDR_MM, 'F');
 		d.setTextColor(255, 255, 255);
 		d.setFont('helvetica', 'bold');
@@ -103,23 +127,20 @@ export function buildMapPdf(
 		d.setFontSize(8.5);
 		const sub = [header.address, header.zip, header.phone].filter(Boolean).join('   ');
 		if (sub) d.text(sub, PAD, 20);
-		d.setFillColor(...COMMAND.accent);
+		d.setFillColor(...pal.accent);
 		d.rect(0, HDR_MM - 2.5, sz.wMm, 2.5, 'F');
 		d.setFontSize(9);
 		d.setTextColor(255, 255, 255);
-		d.text(floorLine(crop, idx + 1, sorted.length), sz.wMm - PAD, 13, { align: 'right' });
+		d.text(`${pal.name}  -  ${floorLine(crop, idx + 1, sorted.length)}`, sz.wMm - PAD, 13, { align: 'right' });
 
 		// Floorplan image (cropped region scaled to crop mm box under the header).
 		d.addImage(pg.imageDataUrl, 'JPEG', 0, HDR_MM, sz.cropWmm, sz.cropHmm);
 
-		// Markers: shadow pass then fill+label.
+		// Markers: style-specific pin (shadow + fill) then label.
 		for (const m of pageMarkers) {
 			const p = markerMm(m, pg.canvasW, pg.canvasH, cp.x, cp.y);
 			const rgb = hexToRgb(typeMeta[m.type].color);
-			d.setFillColor(0, 0, 0);
-			d.circle(p.x + 0.4, p.y + 0.4, PIN_R, 'F');
-			d.setFillColor(rgb[0], rgb[1], rgb[2]);
-			d.circle(p.x, p.y, PIN_R, 'F');
+			drawPin(d, p.x, p.y, rgb, pal.shape);
 			d.setTextColor(255, 255, 255);
 			d.setFont('helvetica', 'bold');
 			d.setFontSize(7);
@@ -130,7 +151,7 @@ export function buildMapPdf(
 		const legTop = HDR_MM + sz.cropHmm;
 		d.setFillColor(245, 246, 248);
 		d.rect(0, legTop, sz.wMm, legH, 'F');
-		d.setTextColor(...COMMAND.text);
+		d.setTextColor(...pal.text);
 		d.setFont('helvetica', 'bold');
 		d.setFontSize(9);
 		d.text('LEGEND', PAD, legTop + 5.5);
@@ -158,7 +179,7 @@ export function buildMapPdf(
 				d.text(chip.label, chip.x, chip.y + 0.5, { align: 'center' });
 			}
 			// type name + counts
-			d.setTextColor(...COMMAND.text);
+			d.setTextColor(...pal.text);
 			d.setFont('helvetica', 'bold');
 			d.setFontSize(9);
 			d.text(item.typeName.toUpperCase(), nameX, rowCY + 1);
