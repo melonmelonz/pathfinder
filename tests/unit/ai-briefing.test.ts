@@ -72,6 +72,13 @@ describe('provider adapter (model-independent)', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('degrades to the data-derived fallback when the provider throws (never 500)', async () => {
+		const { generateBriefing } = await import('../../src/lib/server/ai');
+		const env = makeEnv({}, { AI: { run: async () => { throw new Error('entitlement'); } } });
+		const out = await generateBriefing(env, 'WAHS', 'Floor 1', sections);
+		expect(out).toContain('WAHS'); // fallback, not an exception
+	});
+
 	it('reports not-configured when there is no provider, key, or AI binding', async () => {
 		const { aiConfigured } = await import('../../src/lib/server/ai');
 		expect(await aiConfigured(makeEnv({}))).toBe(false);

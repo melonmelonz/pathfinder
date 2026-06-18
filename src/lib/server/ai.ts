@@ -66,18 +66,20 @@ export async function generateBriefing(
 	const resolved = await resolveProvider(env);
 	if (!resolved) throw new Error('No AI provider configured.');
 	const messages = buildBriefingPrompt(facilityName, floorLabel, sections);
+	const fallback = () => fallbackBriefing(facilityName, floorLabel, sections);
 
-	if (resolved.provider === 'mock') {
-		return fallbackBriefing(facilityName, floorLabel, sections);
+	// A provider error (entitlement, network, model) must never 500 the request:
+	// degrade to the truthful, data-derived fallback briefing.
+	try {
+		if (resolved.provider === 'mock') return fallback();
+		if (resolved.provider === 'workers-ai') {
+			const r = (await env.AI!.run(resolved.model, { messages, max_tokens: 220 })) as { response?: string };
+			return (r?.response ?? '').trim() || fallback();
+		}
+		return await openAiChat(resolved.baseUrl, env.LLM_API_KEY as string, resolved.model, messages, fallback);
+	} catch {
+		return fallback();
 	}
-	if (resolved.provider === 'workers-ai') {
-		const r = (await env.AI!.run(resolved.model, { messages, max_tokens: 220 })) as { response?: string };
-		return (r?.response ?? '').trim() || fallbackBriefing(facilityName, floorLabel, sections);
-	}
-	// OpenAI-compatible chat completions.
-	return openAiChat(resolved.baseUrl, env.LLM_API_KEY as string, resolved.model, messages, () =>
-		fallbackBriefing(facilityName, floorLabel, sections)
-	);
 }
 
 async function openAiChat(
