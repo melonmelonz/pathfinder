@@ -144,7 +144,7 @@
 					<td>{u.name}</td>
 					<td>{u.email}</td>
 					<td>
-						<select value={u.role} onchange={(e) => changeRole(u.id, (e.currentTarget as HTMLSelectElement).value)} data-testid="user-role-select">
+						<select value={u.role} onchange={(e) => changeRole(u.id, (e.currentTarget as HTMLSelectElement).value)} aria-label={`Role for ${u.email}`} data-testid="user-role-select">
 							<option>admin</option><option>staff</option><option>client</option>
 						</select>
 					</td>

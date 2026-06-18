@@ -134,14 +134,21 @@ test('E5 delete prompts a confirm dialog before removing a selected annotation',
 	await page.locator('html[data-hydrated="true"]').waitFor();
 	await expect(page.getByTestId('annotation-count')).toHaveText(/4 annotations/);
 
-	// Select the seeded AED marker on the canvas, then press Delete -> confirm modal.
+	// Select the seeded rect annotation (a large, reliable bbox target) then
+	// press Delete -> confirm modal. (Delete is in-memory until Save, so this
+	// does not disturb the persisted 4-annotation seed for other tests.)
 	const canvas = page.getByTestId('annotation-canvas');
-	const box = (await canvas.boundingBox())!;
 	await page.getByTestId('tool-select').click();
-	await page.mouse.click(box.x + box.width * 0.32, box.y + box.height * 0.41 - 24); // marker body sits above the tip
-	await page.keyboard.press('Delete');
+	const box = (await canvas.boundingBox())!;
 	const modal = page.getByRole('dialog', { name: 'Confirm delete' });
-	await expect(modal).toBeVisible();
+	// Retry the select+Delete until the dialog opens - the canvas hit-test can
+	// race the viewer's first paint; requestDelete only opens the modal (no
+	// destructive action) so retrying is safe.
+	await expect(async () => {
+		await canvas.click({ position: { x: box.width * 0.25, y: box.height * 0.21 } });
+		await page.keyboard.press('Delete');
+		await expect(modal).toBeVisible({ timeout: 700 });
+	}).toPass({ timeout: 8000 });
 	await page.getByTestId('delete-confirm').click();
 	await expect(page.getByTestId('annotation-count')).toHaveText(/3 annotations/);
 });

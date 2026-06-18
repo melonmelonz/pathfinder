@@ -9,7 +9,12 @@ const PORT = 4173;
 export default defineConfig({
 	testDir: 'tests/e2e',
 	outputDir: 'test-results',
-	fullyParallel: true,
+	// All specs share ONE local D1 (miniflare SQLite) behind the dev server, so
+	// they run serially - parallel workers cause SQLite write-contention flakes
+	// (a full-table reindex racing concurrent writes). Production D1 handles
+	// concurrency fine; this is purely a single-file-SQLite test-runner artifact.
+	fullyParallel: false,
+	workers: 1,
 	reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }], ['list']],
 	use: {
 		baseURL: `http://localhost:${PORT}`,

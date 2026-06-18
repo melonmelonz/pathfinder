@@ -27,3 +27,10 @@ bucket_name = "pathfinder-documents"
 [[kv_namespaces]]
 binding = "CACHE"
 id = "6576675808314bfd99b080eef61c6c7c"
+
+# Workers AI (binding AI) - keyless, on-platform inference for the Pro AI
+# briefing feature. With this binding present the feature works with no external
+# key; set an external provider instead via the `llm.provider`/`llm.base_url`/
+# `llm.model` settings + the LLM_API_KEY secret (Mistral/OpenAI/Groq/etc.).
+[ai]
+binding = "AI"

@@ -38,6 +38,10 @@ declare global {
 				RESEND_API_KEY?: string;
 				RESEND_FROM?: string;
 				SENTRY_DSN?: string;
+				// Workers AI binding (keyless) + external-provider key for the AI
+				// briefing feature (provider/model/base-url live in the settings table).
+				AI?: { run: (model: string, input: unknown) => Promise<unknown> };
+				LLM_API_KEY?: string;
 			};
 		}
 	}

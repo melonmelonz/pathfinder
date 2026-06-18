@@ -5,12 +5,17 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isGlobalScope } from '$lib/server/hierarchy';
-import { setCommentResolved } from '$lib/server/collab';
+import { setCommentResolved, commentDocumentId } from '$lib/server/collab';
+import { getDocument } from '$lib/server/documents';
 
 export const PATCH: RequestHandler = async ({ locals, platform, params, request }) => {
 	const env = platform?.env;
 	if (!env?.DB) error(500, 'Database binding unavailable.');
 	if (!locals.user) error(401, 'Not authenticated.');
+	// Scope to the comment's document so a staff user cannot resolve another
+	// org's thread by guessing an id (IDOR).
+	const docId = await commentDocumentId(env, params.id);
+	if (!docId || !(await getDocument(env, locals.user, docId))) error(404, 'Comment not found.');
 	if (!isGlobalScope(locals.user)) error(403, 'Staff or admin role required.');
 
 	let body: { resolved?: boolean };

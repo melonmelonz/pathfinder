@@ -926,6 +926,28 @@
 		redraw();
 	}
 
+	// AI responder briefing (Pro feature, grounded on this floor's markers).
+	let briefing = $state('');
+	let briefingBusy = $state(false);
+	async function generateBriefing() {
+		briefingBusy = true;
+		briefing = '';
+		try {
+			const res = await fetch(`/api/documents/${data.document.id}/briefing`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ page: currentPage })
+			});
+			briefing = res.ok
+				? ((await res.json()) as { briefing: string }).briefing
+				: 'Briefing unavailable (no AI provider configured).';
+		} catch {
+			briefing = 'Briefing failed.';
+		} finally {
+			briefingBusy = false;
+		}
+	}
+
 	let shareUrl = $state('');
 	async function makeShareLink() {
 		const res = await fetch('/api/share', {
@@ -1077,8 +1099,16 @@
 			{#if data.canEdit}
 				<button onclick={makeShareLink} data-testid="share-link">Share link</button>
 			{/if}
+			{#if data.canEdit && data.aiEnabled}
+				<button onclick={generateBriefing} disabled={briefingBusy} data-testid="ai-briefing">
+					{briefingBusy ? 'Briefing...' : 'AI briefing'}
+				</button>
+			{/if}
 		</div>
 	</header>
+	{#if briefing}
+		<p class="briefing" data-testid="briefing-text"><strong>Responder briefing:</strong> {briefing}</p>
+	{/if}
 	{#if shareUrl}
 		<p class="share-note" data-testid="share-url">Read-only link copied: <code>{shareUrl}</code></p>
 	{/if}
@@ -1264,6 +1294,14 @@
 	.share-note code {
 		color: var(--brand-primary);
 		word-break: break-all;
+	}
+	.briefing {
+		background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+		border-radius: var(--radius);
+		padding: var(--space-3);
+		font-size: 0.9rem;
+		line-height: 1.5;
 	}
 	.workspace {
 		display: flex;

@@ -78,6 +78,12 @@ Open **WAHS Main - Floor 1.pdf** (the floorplan link).
    **Export JSON**.
 7. **Accessibility:** expand *"Text alternative for this floor"* - a
    screen-reader-friendly list of every exit, AED, and marker.
+8. **AI responder briefing** (if a provider is configured): click **AI briefing**
+   - it turns the *same marked data* into a natural-language responder paragraph.
+   *"Grounded on the markers, so it can't invent exits or give advice it wasn't
+   given. It's model-independent: Cloudflare Workers AI with no key, or Mistral/
+   OpenAI/Groq/Ollama by setting a key + base URL in admin settings - swap
+   models without a redeploy."*
 
 **Talking point:** *"This is the de-risked part - the annotation and NFPA-export
 math is the proven v1 engine, extracted into framework-agnostic TypeScript

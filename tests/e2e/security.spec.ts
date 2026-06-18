@@ -91,6 +91,41 @@ test('responses carry hardening headers and never leak password material', async
 	await admin.dispose();
 });
 
+const STAFF = { email: 'staff@test.com', password: 'test1234' };
+
+test('export jobs: only the creator (or admin) may update; unknown columns are ignored', async ({ playwright, baseURL }) => {
+	const admin = await ctx(playwright.request, baseURL!, ADMIN);
+	const staff = await ctx(playwright.request, baseURL!, STAFF);
+
+	const created = await admin.post('/api/export-jobs', { data: { scopeType: 'building', scopeId: ELS_BUILDING, total: 1 } });
+	const jobId = (await created.json()).job.id as string;
+
+	// A different staff user cannot mutate another's job (ownership).
+	expect((await staff.fetch(`/api/export-jobs/${jobId}`, { method: 'PATCH', data: { status: 'error' } })).status()).toBe(403);
+
+	// The owner can; an injected/unknown column is silently ignored (whitelist).
+	const ok = await admin.fetch(`/api/export-jobs/${jobId}`, { method: 'PATCH', data: { status: 'running', done: 1, hacked_column: 'x' } });
+	expect(ok.ok()).toBe(true);
+	const job = (await (await admin.get(`/api/export-jobs?scopeType=building&scopeId=${ELS_BUILDING}`)).json()).jobs.find((j: { id: string }) => j.id === jobId);
+	expect(job.status).toBe('running');
+	expect(job).not.toHaveProperty('hacked_column');
+	await admin.dispose();
+	await staff.dispose();
+});
+
+test('share links: only the issuer (or an admin) may revoke', async ({ playwright, baseURL }) => {
+	const admin = await ctx(playwright.request, baseURL!, ADMIN);
+	const staff = await ctx(playwright.request, baseURL!, STAFF);
+	const { token } = await (await admin.post('/api/share', { data: { resourceType: 'document', resourceId: ELS_DOC } })).json();
+
+	// A staff user who did not issue the link cannot revoke it.
+	expect((await staff.fetch(`/api/share/${token}`, { method: 'DELETE' })).status()).toBe(404);
+	// The issuer can.
+	expect((await admin.fetch(`/api/share/${token}`, { method: 'DELETE' })).ok()).toBe(true);
+	await admin.dispose();
+	await staff.dispose();
+});
+
 test('the audit log exposes no mutation endpoint (append-only)', async ({ playwright, baseURL }) => {
 	const admin = await ctx(playwright.request, baseURL!, ADMIN);
 	// There is a read/export endpoint but no PATCH/DELETE to tamper with entries.

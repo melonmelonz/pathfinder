@@ -7,7 +7,7 @@
 *A platform by [Pathfinder LiDAR Solutions](https://pathfinder-lidar.pages.dev).*
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3f6e98)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-164%20unit%20%2B%2045%20e2e%20passing-2e8b57)](#testing-tdd)
+[![Tests](https://img.shields.io/badge/tests-170%20unit%20%2B%2058%20e2e%20passing-2e8b57)](#testing-tdd)
 [![Stack](https://img.shields.io/badge/SvelteKit-Cloudflare-6fa8d4)](#architecture)
 [![3D](https://img.shields.io/badge/3D-Gaussian%20Splats%20(SPZ)-a9cce3)](#3d-scans)
 [![Edition](https://img.shields.io/badge/model-open%20core-c4e2f5)](#editions)
@@ -60,6 +60,7 @@ hosted edition (Pathfinder Pro) operated by Pathfinder LiDAR Solutions with payi
 | Collaboration | Comments + resolve | + **@mentions, email notifications, share links** |
 | Global search | Per project | **Cross-org** |
 | Compliance | In-app audit log | + **NG911/NENA export, audit export, trust page** |
+| AI responder briefing | n/a | **Model-independent: Workers AI (keyless) or Mistral/OpenAI/Groq/Ollama via key** |
 | Auth | JWT + roles | + **SSO/SAML/MFA** |
 | Billing | n/a | **Stripe subscriptions** |
 | Support | Community | Priority + SLA |
@@ -199,7 +200,7 @@ production. The app fails closed if a real `JWT_SECRET` is not set in production
 Pathfinder is **test-first**. Every acceptance criterion in
 [`docs/03-acceptance-criteria.md`](./docs/03-acceptance-criteria.md) maps to a test; user-visible
 behavior is verified with Playwright screenshots committed to the repo. Current suite:
-**164 unit + 45 e2e passing**. The mapping from criteria to test-writing prompts is the
+**170 unit + 58 e2e passing**. The mapping from criteria to test-writing prompts is the
 [TDD Plan](./docs/04-tdd-plan.md) ([PDF](./docs/pdf/Pathfinder-TDD-Plan.pdf)). Rules every
 contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
 

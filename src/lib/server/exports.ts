@@ -34,6 +34,12 @@ export async function createJob(
 	return (await env.DB.prepare('SELECT * FROM export_jobs WHERE id = ?').bind(id).first<ExportJob>())!;
 }
 
+export async function getJob(env: Env, id: string): Promise<ExportJob | null> {
+	return env.DB.prepare('SELECT * FROM export_jobs WHERE id = ?').bind(id).first<ExportJob>();
+}
+
+/** Update a job's tracked fields. Only a fixed whitelist of columns is settable
+ *  - keys never reach the SQL string, so a caller cannot inject column names. */
 export async function updateJob(
 	env: Env,
 	id: string,
@@ -41,9 +47,21 @@ export async function updateJob(
 ): Promise<void> {
 	const sets: string[] = ["updated_at = datetime('now')"];
 	const binds: unknown[] = [];
-	for (const [k, v] of Object.entries(patch)) {
-		sets.push(`${k} = ?`);
-		binds.push(v);
+	if (patch.status !== undefined) {
+		sets.push('status = ?');
+		binds.push(patch.status);
+	}
+	if (patch.done !== undefined) {
+		sets.push('done = ?');
+		binds.push(patch.done);
+	}
+	if (patch.result_key !== undefined) {
+		sets.push('result_key = ?');
+		binds.push(patch.result_key);
+	}
+	if (patch.error !== undefined) {
+		sets.push('error = ?');
+		binds.push(patch.error);
 	}
 	binds.push(id);
 	await env.DB.prepare(`UPDATE export_jobs SET ${sets.join(', ')} WHERE id = ?`)

@@ -32,6 +32,14 @@ export const PUT: RequestHandler = async ({ locals, platform, params, request })
 		error(400, 'Malformed request body.');
 	}
 	if (!Array.isArray(body.markers)) error(400, 'markers array required.');
+	const ok = (body.markers as unknown[]).every(
+		(m) =>
+			m &&
+			typeof (m as { type?: unknown }).type === 'string' &&
+			Number.isFinite((m as { nx?: unknown }).nx) &&
+			Number.isFinite((m as { ny?: unknown }).ny)
+	);
+	if (!ok) error(400, 'Each marker needs a type and numeric nx/ny.');
 
 	await saveMarkersBatch(env, params.id, body.markers as never[]);
 	await audit(env, locals.user.id, 'marker.saveBatch', `document:${params.id}`, request);

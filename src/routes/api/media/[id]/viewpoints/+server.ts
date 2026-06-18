@@ -31,6 +31,15 @@ export const PUT: RequestHandler = async ({ locals, platform, params, request })
 		error(400, 'Malformed request body.');
 	}
 	if (!Array.isArray(body.viewpoints)) error(400, 'viewpoints array required.');
+	const triple = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every((n) => Number.isFinite(n));
+	const ok = (body.viewpoints as unknown[]).every(
+		(v) =>
+			v &&
+			typeof (v as { name?: unknown }).name === 'string' &&
+			triple((v as { position?: unknown }).position) &&
+			triple((v as { target?: unknown }).target)
+	);
+	if (!ok) error(400, 'Each viewpoint needs a name and numeric position/target triples.');
 	await saveViewpointsBatch(env, params.id, body.viewpoints as never[]);
 	await audit(env, locals.user.id, 'scan3d.viewpoints.save', `media:${params.id}`, request);
 	return json({ ok: true, count: (body.viewpoints as unknown[]).length });

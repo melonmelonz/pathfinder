@@ -36,14 +36,19 @@ test('AC-9.1.1 / AC-9.1.2 / AC-9.2.1 anchored comment, reply nesting, resolve hi
 	await page.locator('html[data-hydrated="true"]').waitFor();
 
 	// AC-9.1.1: anchor a comment to a selected annotation; it renders + persists.
+	// Wait for the viewer's onMount to seed annotations before clicking the canvas.
+	await expect(page.getByTestId('annotation-count')).toHaveText(/4 annotations/);
 	const canvas = page.getByTestId('annotation-canvas');
-	const box = (await canvas.boundingBox())!;
 	await page.getByTestId('tool-select').click();
-	// Click the centre of the seeded rect annotation (nx .15-.35, ny .15-.27) -
-	// a large, reliable hit target.
-	await page.mouse.click(box.x + box.width * 0.25, box.y + box.height * 0.21);
+	const box = (await canvas.boundingBox())!;
 	const draft = page.getByTestId('comment-draft');
-	await expect(draft).toBeEnabled(); // selection anchored the comment box
+	// Retry the select until the comment box enables - the canvas hit-test can
+	// race the viewer's first paint. Click the centre of the seeded rect
+	// annotation (nx .15-.35, ny .15-.27), a large, reliable target.
+	await expect(async () => {
+		await canvas.click({ position: { x: box.width * 0.25, y: box.height * 0.21 } });
+		await expect(draft).toBeEnabled({ timeout: 700 });
+	}).toPass({ timeout: 8000 });
 	const text = `Egress note ${Date.now()}`;
 	const reply = `Ack ${Date.now()}`;
 	await draft.fill(text);

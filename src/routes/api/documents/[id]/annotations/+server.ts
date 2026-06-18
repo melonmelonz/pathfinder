@@ -34,6 +34,14 @@ export const PUT: RequestHandler = async ({ locals, platform, params, request })
 		error(400, 'Malformed request body.');
 	}
 	if (!Array.isArray(body.annotations)) error(400, 'annotations array required.');
+	const ok = (body.annotations as unknown[]).every(
+		(a) =>
+			a &&
+			typeof (a as { type?: unknown }).type === 'string' &&
+			Number.isFinite((a as { nx?: unknown }).nx) &&
+			Number.isFinite((a as { ny?: unknown }).ny)
+	);
+	if (!ok) error(400, 'Each annotation needs a type and numeric nx/ny.');
 
 	await saveAnnotationsBatch(env, params.id, body.annotations as never[]);
 	await audit(env, locals.user.id, 'annotation.saveBatch', `document:${params.id}`, request);

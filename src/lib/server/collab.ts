@@ -100,6 +100,16 @@ export async function addComment(
 	return row as CommentRow;
 }
 
+/** The document a comment belongs to (via its annotation), for scope checks. */
+export async function commentDocumentId(env: Env, commentId: string): Promise<string | null> {
+	const row = await env.DB.prepare(
+		'SELECT a.document_id AS d FROM annotation_comments c JOIN annotations a ON a.id = c.annotation_id WHERE c.id = ?'
+	)
+		.bind(commentId)
+		.first<{ d: string }>();
+	return row?.d ?? null;
+}
+
 /** Resolve / unresolve a comment thread. Resolving hides, never deletes. */
 export async function setCommentResolved(
 	env: Env,
@@ -167,8 +177,20 @@ export async function createShareLink(
 	return token;
 }
 
-export async function revokeShareLink(env: Env, token: string): Promise<void> {
-	await env.DB.prepare('UPDATE share_links SET revoked = 1 WHERE token = ?').bind(token).run();
+/** Revoke a share link. Only its issuer (or an admin) may revoke; returns true
+ *  if a row was actually revoked (false = not found / not the issuer). */
+export async function revokeShareLink(
+	env: Env,
+	token: string,
+	userId: string,
+	isAdmin: boolean
+): Promise<boolean> {
+	const res = await env.DB.prepare(
+		'UPDATE share_links SET revoked = 1 WHERE token = ? AND (created_by = ? OR ? = 1)'
+	)
+		.bind(token, userId, isAdmin ? 1 : 0)
+		.run();
+	return (res.meta?.changes ?? 0) > 0;
 }
 
 export async function resolveShareLink(

@@ -12,6 +12,7 @@ import {
 	listCrops
 } from '$lib/server/documents';
 import { isGlobalScope } from '$lib/server/hierarchy';
+import { aiConfigured } from '$lib/server/ai';
 
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const env = platform?.env;
@@ -44,6 +45,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		markers,
 		crops,
 		canEdit: isGlobalScope(locals.user),
+		aiEnabled: await aiConfigured(env),
 		fileUrl: `/api/documents/${params.id}/file`,
 		facilityName: facility?.name ?? null,
 		facilityAddress: facility?.address ?? null,

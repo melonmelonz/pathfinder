@@ -32,7 +32,15 @@
 
 	const topLevel = $derived(comments.filter((c) => !c.parent_id));
 	const repliesOf = (id: string) => comments.filter((c) => c.parent_id === id);
-	const imgs = (c: Comment): string[] => (c.images ? (JSON.parse(c.images) as string[]) : []);
+	const imgs = (c: Comment): string[] => {
+		if (!c.images) return [];
+		try {
+			const parsed = JSON.parse(c.images);
+			return Array.isArray(parsed) ? parsed : [];
+		} catch {
+			return []; // a corrupt images value must never crash the panel render
+		}
+	};
 	const imgUrl = (key: string) => `/api/documents/${documentId}/comment-images?key=${encodeURIComponent(key)}`;
 
 	async function load() {
