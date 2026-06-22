@@ -11,10 +11,6 @@
 	import { activeBrand, brandToCssVars } from '$lib/brand';
 	import Logo from '$lib/components/Logo.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
-	// LIVE TDD DEMO - Step 4: powers the header avatar badge with the initials()
-	// function you build live. Uncomment this import AND the badge block in the
-	// nav below; the badge renders only once initials() returns a value (green).
-	// import { initials } from '$lib/utils/initials';
 
 	// White-label shell (Epic E1): the active brand's tokens are injected onto
 	// :root as CSS custom properties; every component references var(--brand-*).
@@ -24,6 +20,9 @@
 	const brand = activeBrand;
 	const cssVars = brandToCssVars(brand);
 	const user = $derived(data.user);
+	// Header avatar initials. Populated on mount IF the demo initials() util is
+	// implemented (see onMount); stays '' otherwise so no badge renders.
+	let avatarInitials = $state('');
 
 	// Active-section highlight for the primary nav.
 	const path = $derived(page.url.pathname);
@@ -34,6 +33,18 @@
 
 	onMount(() => {
 		document.documentElement.setAttribute('data-hydrated', 'true');
+		// LIVE TDD DEMO: light up a header avatar beside the name IF the initials()
+		// util is implemented. Defensive dynamic import - when the export does not
+		// exist (its committed/prod state), we simply render no badge, never error.
+		const u = user;
+		if (!u) return;
+		import('$lib/utils/initials')
+			.then((mod: { initials?: (name: string) => string }) => {
+				if (typeof mod.initials === 'function') avatarInitials = mod.initials(u.name);
+			})
+			.catch(() => {
+				/* util not present - leave the badge off */
+			});
 	});
 </script>
 
@@ -57,29 +68,14 @@
 				{#if user.role === 'admin'}
 					<a href="/admin" class="navlink" class:active={isActive('/admin')} data-testid="nav-admin">Admin</a>
 				{/if}
-				<!-- LIVE TDD DEMO - Step 4: avatar badge beside the name, powered by
-				     your tested initials(). Uncomment the block below AND the
-				     `import { initials }` line marked Step 4 in <script>. It stays
-				     hidden until initials() returns a value (test green), then it
-				     lights up here beside the name. -->
-				<!--
-				{@const ini = initials(user.name)}
-				{#if ini}
-					<div
-						aria-hidden="true"
-						style="display: grid; place-items: center; width: 1.9rem; height: 1.9rem;
-						       border-radius: 999px; font-family: var(--brand-font-mono);
-						       font-size: 0.72rem; font-weight: 700; color: var(--brand-primary);
-						       background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-						       border: 1px solid color-mix(in srgb, var(--brand-primary) 45%, transparent);"
-					>
-						{ini}
-					</div>
-				{/if}
-				-->
-				<span class="who" data-testid="nav-user">
-					<span class="who-name">{user.name}</span>
-					<span class="who-role">{user.role}</span>
+				<span class="user-cluster">
+					{#if avatarInitials}
+						<span class="user-avatar" data-testid="user-avatar" aria-hidden="true">{avatarInitials}</span>
+					{/if}
+					<span class="who" data-testid="nav-user">
+						<span class="who-name">{user.name}</span>
+						<span class="who-role">{user.role}</span>
+					</span>
 				</span>
 			{:else}
 				<a href="/login" class="btn-cta">Sign in</a>
@@ -183,14 +179,35 @@
 		box-shadow: 0 0 10px -1px color-mix(in srgb, var(--brand-primary) 70%, transparent);
 	}
 
+	/* avatar + name/role, with the divider that used to sit on .who */
+	.user-cluster {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-left: var(--space-2);
+		padding-left: var(--space-3);
+		border-left: var(--line);
+	}
+	.user-avatar {
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		flex-shrink: 0;
+		border-radius: 50%;
+		font-family: var(--brand-font-mono);
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		color: var(--brand-primary);
+		background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+		border: 1px solid color-mix(in srgb, var(--brand-primary) 45%, transparent);
+	}
 	.who {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-end;
 		line-height: 1.1;
-		margin-left: var(--space-2);
-		padding-left: var(--space-3);
-		border-left: var(--line);
 	}
 	.who-name {
 		font-size: 0.85rem;
@@ -275,6 +292,12 @@
 	@media (max-width: 38rem) {
 		.who {
 			display: none;
+		}
+		/* drop the divider when only the avatar (or nothing) remains */
+		.user-cluster {
+			margin-left: 0;
+			padding-left: 0;
+			border-left: none;
 		}
 		.site-main {
 			padding: var(--space-4) var(--space-3);
