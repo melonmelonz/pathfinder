@@ -1470,7 +1470,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
-		width: 9.5rem;
+		width: 12rem;
 		flex-shrink: 0;
 		padding: var(--space-3);
 		position: sticky;
@@ -1487,10 +1487,17 @@
 	.tool-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--space-1);
+		gap: var(--space-2);
 	}
 	.tool-grid .btn {
-		padding: 0.4rem 0.3rem;
+		padding: 0.45rem 0.4rem;
+		font-size: 0.75rem;
+		line-height: 1.2;
+		/* labels like "Fire Ext"/"Correction" wrap instead of cramming/clipping */
+		white-space: normal;
+		overflow-wrap: anywhere;
+		min-width: 0;
+		min-height: 2.1rem;
 	}
 	.color {
 		margin-top: var(--space-2);

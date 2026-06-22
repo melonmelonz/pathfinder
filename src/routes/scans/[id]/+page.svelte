@@ -416,7 +416,8 @@
 		backdrop-filter: blur(8px); box-shadow: var(--shadow-2);
 	}
 	.panel { width: 16rem; flex-shrink: 0; padding: var(--space-3); }
-	.marker-tools { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); }
+	.marker-tools { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+	.marker-tools :global(.btn) { padding: 0.45rem 0.5rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; line-height: 1.2; }
 	.scale { display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.72rem; color: var(--brand-muted); margin-top: var(--space-3); }
 	.mlist, .vlist, .rlist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.85rem; }
 	.mlist li, .vlist li, .rlist li { display: flex; align-items: center; gap: var(--space-2); }
