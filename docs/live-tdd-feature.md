@@ -1,143 +1,145 @@
-# Live TDD Runbook - Annotation Resize Handles
+# Live TDD Runbook - tiny red -> green in front of an audience
 
-A self-contained feature you can build live in ~12-15 minutes, demonstrating
-strict red-green-refactor TDD. It closes a real, verified gap: v1 let you resize
-box annotations after drawing; v2 currently only moves them (see the parity
-audit). So this is honest, visible, and the math is clean enough to TDD live.
+A deliberately SMALL feature you build live in ~3-5 minutes to demonstrate
+test-driven development: you type a little test, it goes RED, you show the
+audience, then you type a little code and it goes GREEN. One pure function, no
+UI plumbing, no flakiness.
 
-**Why this feature for a live demo**
-- The core is a pure function -> a fast, deterministic red->green you can show.
-- It plugs into the engine the same way `translateAnnotation` already does.
-- It fixes something the audience can see (drag a corner, the box grows).
+**The feature:** `initials(name)` - turn a full name into up-to-two uppercase
+initials (e.g. for a user avatar badge). `"Test Admin" -> "TA"`. Pure, obvious,
+and the kind of helper a real app actually needs.
 
-**Talking point up front:** *"The de-risking principle here is shell-rewrite,
-engine-port: all the load-bearing geometry lives in pure, framework-agnostic
-modules with unit tests. I'll add resize the same way - test first."*
+> Keep these two files OUT of git until the demo so the repo stays green. You
+> create them live (or pre-create the empty stubs and only type the two
+> highlighted fill-ins on stage).
 
 ---
 
-## Setup (10s)
+## Before you start (10 seconds, off-screen)
+
+Open a terminal and start the watcher so the audience sees tests re-run live:
 
 ```bash
 cd ~/dev/pathfinder
-npx vitest --watch tests/unit/edit-engine.test.ts   # leave this running on screen
+npx vitest --watch initials
 ```
 
-The watcher re-runs on every save - the audience sees red flip to green live.
+It will say "no test files found" - that's expected; we create one next.
 
 ---
 
-## Step 1 - RED: write the failing test (3 min)
+## Step 1 - RED: write the test, watch it fail (you type this live)
 
-Open `tests/unit/edit-engine.test.ts` and add this block. It imports a function
-that does not exist yet, so it fails to compile/run - that's the red.
+Create `tests/unit/initials.test.ts`:
 
 ```ts
-import { resizeAnnotation } from '../../src/lib/engines/2d-annotate/edit';
+import { describe, it, expect } from 'vitest';
+import { initials } from '../../src/lib/utils/initials';
 
-describe('resizeAnnotation (box shapes)', () => {
-	const rect: Annotation = { id: 'r', page: 1, type: 'rect', nx: 0.2, ny: 0.2, nw: 0.4, nh: 0.3, color: '#000' };
-
-	it('SE handle grows width + height by the delta', () => {
-		const r = resizeAnnotation(rect, 'se', 0.1, 0.05);
-		expect(r.nw).toBeCloseTo(0.5);
-		expect(r.nh).toBeCloseTo(0.35);
-		expect(r.nx).toBeCloseTo(0.2); // origin unchanged
-	});
-
-	it('NW handle moves the origin and shrinks the box', () => {
-		const r = resizeAnnotation(rect, 'nw', 0.1, 0.1);
-		expect(r.nx).toBeCloseTo(0.3);
-		expect(r.ny).toBeCloseTo(0.3);
-		expect(r.nw).toBeCloseTo(0.3);
-		expect(r.nh).toBeCloseTo(0.2);
-	});
-
-	it('keeps a minimum size so a box cannot invert', () => {
-		const r = resizeAnnotation(rect, 'se', -1, -1);
-		expect(r.nw).toBeGreaterThanOrEqual(0.01);
-		expect(r.nh).toBeGreaterThanOrEqual(0.01);
+describe('initials', () => {
+	it('takes up to two uppercase initials from a name', () => {
+		// >>> THE LIVE FILL-IN (type this line on stage) <<<
+		expect(initials('Test Admin')).toBe('TA');
 	});
 });
 ```
 
-Save. Show the watcher: **RED** (`resizeAnnotation is not a function`).
+Save. The watcher goes **RED** - `initials` does not exist yet
+("Failed to resolve import"). *"That's TDD: the test describes the behaviour
+before the code exists. Red means we have a real, failing spec to satisfy."*
 
 ---
 
-## Step 2 - GREEN: implement the minimum to pass (3 min)
+## Step 2 - GREEN: write the code, watch it pass (you type this live)
 
-Open `src/lib/engines/2d-annotate/edit.ts` and add:
+Create `src/lib/utils/initials.ts`:
 
 ```ts
-export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
-const MIN = 0.01;
-
-/** Resize a box-type annotation by dragging a corner handle (normalized delta).
- *  The opposite corner is the anchor; enforces a minimum size so it can't invert. */
-export function resizeAnnotation(a: Annotation, handle: ResizeHandle, dnx: number, dny: number): Annotation {
-	let { nx, ny, nw, nh } = a;
-	if (handle === 'se') { nw += dnx; nh += dny; }
-	else if (handle === 'sw') { nx += dnx; nw -= dnx; nh += dny; }
-	else if (handle === 'ne') { ny += dny; nw += dnx; nh -= dny; }
-	else { nx += dnx; ny += dny; nw -= dnx; nh -= dny; } // nw
-	if (nw < MIN) nw = MIN;
-	if (nh < MIN) nh = MIN;
-	return { ...a, nx, ny, nw, nh };
+/** Up to two uppercase initials from a full name ("Test Admin" -> "TA"). */
+export function initials(name: string): string {
+	// >>> THE LIVE FILL-IN (type this body on stage) <<<
+	return name
+		.trim()
+		.split(/\s+/)
+		.slice(0, 2)
+		.map((w) => w[0] ?? '')
+		.join('')
+		.toUpperCase();
 }
 ```
 
-Save. Show the watcher: **GREEN** (3 passing). That's the red-green cycle.
+Save. The watcher flips to **GREEN** - 1 passing. *"Same test, now satisfied by
+the smallest code that makes it pass. Red, green - done."*
 
 ---
 
-## Step 3 - REFACTOR (1 min)
+## Step 3 (optional, +1 min) - one more case to show the cycle again
 
-The four branches share a shape. Optionally tidy, re-run, stay green:
+Add a second assertion to the test (RED), then nudge the code (GREEN):
 
 ```ts
-export function resizeAnnotation(a: Annotation, handle: ResizeHandle, dnx: number, dny: number): Annotation {
-	const left = handle === 'nw' || handle === 'sw';
-	const top = handle === 'nw' || handle === 'ne';
-	let { nx, ny, nw, nh } = a;
-	if (left) { nx += dnx; nw -= dnx; } else { nw += dnx; }
-	if (top) { ny += dny; nh -= dny; } else { nh += dny; }
-	return { ...a, nx, ny, nw: Math.max(MIN, nw), nh: Math.max(MIN, nh) };
+// RED: a single-word name -> one initial
+expect(initials('Pathfinder')).toBe('P');
+// (already passes with the code above - point out it handles this for free)
+
+// RED: extra whitespace shouldn't matter
+expect(initials('  jane   doe ')).toBe('JD');
+// (also already green - the trim()/split(/\s+/) covers it)
+```
+
+Nice beat: the audience sees the code is already robust because it was written
+to a spec, not to one happy-path example.
+
+---
+
+## Step 4 (optional bonus) - make it visible in the app
+
+If you want a visual payoff, drop an avatar badge in the header using the new
+function. In `src/routes/+layout.svelte`, inside the `.who` block:
+
+```svelte
+<script>
+	import { initials } from '$lib/utils/initials';
+</script>
+
+<span class="avatar" aria-hidden="true">{initials(user.name)}</span>
+```
+
+```css
+.avatar {
+	display: grid;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: var(--radius-pill);
+	background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+	color: var(--brand-primary);
+	font-family: var(--brand-font-mono);
+	font-size: 0.75rem;
+	font-weight: 700;
 }
 ```
 
-Re-run -> still green. *"Behaviour locked by the tests, so I can refactor freely."*
+Reload - the signed-in user now has a "TA" avatar. *"Test-first, then wired into
+the real UI in one line."*
 
 ---
 
-## Step 4 - Wire it into the viewer (the visible payoff, ~5 min)
+## Cleanup after the demo
 
-In `src/routes/documents/[id]/+page.svelte` (the engine is already imported):
+```bash
+rm tests/unit/initials.test.ts src/lib/utils/initials.ts
+# (and revert the +layout.svelte avatar if you added Step 4)
+```
 
-1. **Draw handles** for the selected box annotation. In `redraw()` (or a small
-   `drawHandles` after `renderAnnotations`), for the selected non-marker/
-   non-freehand annotation, draw 4 small squares at the bbox corners
-   (`fromNorm` gives the px rect).
-2. **Hit-test a handle on pointer-down.** In `onPointerDown`, when `tool ===
-   'select'` and an annotation is already selected, check if the click is within
-   ~6px of a corner; if so set `resizing = true; resizeHandle = '<corner>'` and
-   take an undo snapshot on first move (mirror the existing `draggingAnn` path).
-3. **Apply on pointer-move.** When `resizing`, compute the normalized delta
-   (same `toNorm` delta you already compute for drag) and
-   `annotations = annotations.map(a => a.id === selectedId
-	   ? resizeAnnotation(a, resizeHandle, dnx, dny) : a)`; `redraw()`.
-4. **Release on pointer-up** (`resizing = false`).
-
-Demo it: select a rectangle, drag a corner, watch it resize; Ctrl+Z undoes it.
-
-**Close:** *"New behaviour, test-first, locked by unit tests, mounted in the
-shell without touching the proven render path - and it just closed a real v1
-parity gap."*
+The repo is back to its committed, all-green state.
 
 ---
 
-## If you have less time
-
-Do Steps 1-3 only (the pure function, red-green-refactor) and *describe* Step 4.
-The TDD discipline is the point; the wiring is mechanical and already has a
-twin in the working `translateAnnotation` drag path.
+### Why this one
+- **Truly small:** one pure function, one assertion to start - fits in a few
+  minutes with zero risk of a live flake.
+- **Honest TDD:** the failing import is genuine red; the body is the minimal
+  green. No theatrics.
+- **Real:** initials/avatars are something the app legitimately uses, so it
+  doesn't feel like a toy.
