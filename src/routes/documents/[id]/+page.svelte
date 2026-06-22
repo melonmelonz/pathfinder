@@ -1084,45 +1084,60 @@
 			<h1>{data.document.filename}</h1>
 		</div>
 		<div class="actions">
-			<button onclick={() => setZoom(-0.25)} aria-label="Zoom out">-</button>
-			<span class="zoom">{Math.round(scale * 100)}%</span>
-			<button onclick={() => setZoom(0.25)} aria-label="Zoom in">+</button>
+			<!-- mode -->
+			<div class="seg" role="group" aria-label="Editing mode">
+				<button class:on={!mapMode} onclick={() => mapMode && toggleMapMode()} data-testid="map-mode-toggle-annotate">Annotate</button>
+				<button class:on={mapMode} onclick={() => !mapMode && toggleMapMode()} data-testid="map-mode-toggle">Map</button>
+			</div>
+
+			<!-- zoom -->
+			<div class="zoomgrp" role="group" aria-label="Zoom">
+				<button class="btn sm" onclick={() => setZoom(-0.25)} aria-label="Zoom out">&minus;</button>
+				<span class="zoom" data-nums>{Math.round(scale * 100)}%</span>
+				<button class="btn sm" onclick={() => setZoom(0.25)} aria-label="Zoom in">+</button>
+			</div>
+
 			{#if data.canEdit}
-				<button onclick={undo} data-testid="undo">Undo</button>
-				<button onclick={redo} data-testid="redo">Redo</button>
-				<button class="primary" onclick={save} disabled={saving || !dirty} data-testid="save">
-					{saving ? 'Saving...' : dirty ? 'Save' : 'Saved'}
+				<div class="grp" role="group" aria-label="History">
+					<button class="btn sm" onclick={undo} data-testid="undo" aria-label="Undo">Undo</button>
+					<button class="btn sm" onclick={redo} data-testid="redo" aria-label="Redo">Redo</button>
+				</div>
+				{#if !mapMode}
+					<button class="btn primary" onclick={save} disabled={saving || !dirty} data-testid="save">
+						{saving ? 'Saving...' : dirty ? 'Save' : 'Saved'}
+					</button>
+				{/if}
+			{/if}
+
+			<span class="vline"></span>
+
+			<!-- export cluster -->
+			<div class="grp" role="group" aria-label="Export">
+				<button class="btn sm" onclick={exportJson} data-testid="export-json">JSON</button>
+				<button class="btn sm" onclick={exportAnnotated} disabled={exporting} data-testid="export-annotated">Annotated PDF</button>
+				{#if mapMode}
+					<select class="stylesel" bind:value={printStyle} data-testid="print-style" aria-label="NFPA print style">
+						{#each PRINT_STYLES as s (s)}<option value={s}>{s}</option>{/each}
+					</select>
+				{/if}
+				<button class="btn sm" onclick={exportMapPdf} disabled={exporting} data-testid="export-map">
+					{exporting ? 'Exporting...' : 'NFPA map'}
+				</button>
+			</div>
+
+			{#if data.canEdit}
+				<button class="btn sm" onclick={makeShareLink} data-testid="share-link">Share</button>
+			{/if}
+			{#if data.canEdit && data.aiEnabled}
+				<button class="btn sm ai" onclick={generateBriefing} disabled={briefingBusy} data-testid="ai-briefing">
+					{briefingBusy ? 'Briefing...' : 'AI briefing'}
 				</button>
 			{/if}
+
 			<label class="layer-toggle" data-testid="responder-layer-toggle">
 				<input type="checkbox" bind:checked={showResponderLayer} onchange={redraw} />
 				Responder layer
 			</label>
-			<button onclick={exportJson} data-testid="export-json">Export JSON</button>
-			<button onclick={exportAnnotated} disabled={exporting} data-testid="export-annotated">Export annotated PDF</button>
-			<button
-				class:active={mapMode}
-				onclick={toggleMapMode}
-				data-testid="map-mode-toggle">{mapMode ? 'Annotate mode' : 'Map mode'}</button
-			>
-			{#if mapMode}
-				<label class="style-pick">Style
-					<select bind:value={printStyle} data-testid="print-style">
-						{#each PRINT_STYLES as s (s)}<option value={s}>{s}</option>{/each}
-					</select>
-				</label>
-			{/if}
-			<button onclick={exportMapPdf} disabled={exporting} data-testid="export-map">
-				{exporting ? 'Exporting...' : 'Export NFPA map'}
-			</button>
-			{#if data.canEdit}
-				<button onclick={makeShareLink} data-testid="share-link">Share link</button>
-			{/if}
-			{#if data.canEdit && data.aiEnabled}
-				<button onclick={generateBriefing} disabled={briefingBusy} data-testid="ai-briefing">
-					{briefingBusy ? 'Briefing...' : 'AI briefing'}
-				</button>
-			{/if}
 		</div>
 	</header>
 	{#if briefing}
@@ -1134,38 +1149,61 @@
 
 	<div class="workspace">
 		{#if data.canEdit && !mapMode}
-			<aside class="tools" data-testid="toolbar" aria-label="Annotation tools">
-				{#each TOOLS as tl (tl.id)}
-					<button
-						class:active={tool === tl.id}
-						onclick={() => (tool = tl.id)}
-						data-testid={`tool-${tl.id}`}
-						title={`${tl.label} (${tl.key})`}>{tl.label}</button
-					>
-				{/each}
+			<aside class="tools panel" data-testid="toolbar" aria-label="Annotation tools">
+				<p class="tool-group">Draw</p>
+				<div class="tool-grid">
+					{#each TOOLS.filter((t) => !MARKER_TOOLS.includes(t.id as AnnotationType)) as tl (tl.id)}
+						<button
+							class="btn sm"
+							class:active={tool === tl.id}
+							onclick={() => (tool = tl.id)}
+							data-testid={`tool-${tl.id}`}
+							title={`${tl.label} (${tl.key})`}>{tl.label}</button
+						>
+					{/each}
+				</div>
+				<p class="tool-group">Safety markers</p>
+				<div class="tool-grid">
+					{#each TOOLS.filter((t) => MARKER_TOOLS.includes(t.id as AnnotationType)) as tl (tl.id)}
+						<button
+							class="btn sm"
+							class:active={tool === tl.id}
+							onclick={() => (tool = tl.id)}
+							data-testid={`tool-${tl.id}`}
+							title={`${tl.label} (${tl.key})`}>{tl.label}</button
+						>
+					{/each}
+				</div>
 				<label class="color">
-					Colour
+					<span>Stroke colour</span>
 					<input type="color" bind:value={color} aria-label="Annotation colour" />
 				</label>
 			</aside>
 		{/if}
 		{#if data.canEdit && mapMode}
-			<aside class="tools" data-testid="map-toolbar" aria-label="Map marker tools">
-				{#each MAP_TOOLS as mt (mt.id)}
-					<button
-						class:active={mapTool === mt.id}
-						onclick={() => (mapTool = mt.id)}
-						data-testid={`map-tool-${mt.id}`}
-						title={`${mt.label} (${mt.key})`}>{mt.label}</button
-					>
-				{/each}
+			<aside class="tools panel" data-testid="map-toolbar" aria-label="Map marker tools">
+				<p class="tool-group">Wayfinding</p>
+				<div class="tool-grid">
+					{#each MAP_TOOLS as mt (mt.id)}
+						<button
+							class="btn sm"
+							class:active={mapTool === mt.id}
+							onclick={() => (mapTool = mt.id)}
+							data-testid={`map-tool-${mt.id}`}
+							title={`${mt.label} (${mt.key})`}>{mt.label}</button
+						>
+					{/each}
+				</div>
 				{#if mapTool === 'hallway' && hallwayPts.length >= 3}
-					<button onclick={commitHallway} data-testid="close-hallway">Close polygon</button>
+					<button class="btn sm" onclick={commitHallway} data-testid="close-hallway">Close polygon</button>
 				{/if}
-				<button onclick={undoMap} data-testid="map-undo">Undo</button>
-				<button onclick={redoMap} data-testid="map-redo">Redo</button>
+				<p class="tool-group">History</p>
+				<div class="tool-grid">
+					<button class="btn sm" onclick={undoMap} data-testid="map-undo">Undo</button>
+					<button class="btn sm" onclick={redoMap} data-testid="map-redo">Redo</button>
+				</div>
 				<button
-					class="primary"
+					class="btn primary"
 					onclick={saveMarkers}
 					disabled={saving || !mapDirty}
 					data-testid="save-markers">{saving ? 'Saving...' : mapDirty ? 'Save map' : 'Saved'}</button
@@ -1198,10 +1236,12 @@
 				></canvas>
 			</div>
 			<footer class="pager">
-				<button onclick={() => gotoPage(currentPage - 1)} disabled={currentPage <= 1}>Prev</button>
-				<span data-testid="page-indicator">Page {currentPage} / {totalPages}</span>
-				<button onclick={() => gotoPage(currentPage + 1)} disabled={currentPage >= totalPages}>Next</button>
-				<span class="count" data-testid="annotation-count">{annotations.length} annotations</span>
+				<div class="pagergrp">
+					<button class="btn sm" onclick={() => gotoPage(currentPage - 1)} disabled={currentPage <= 1}>Prev</button>
+					<span class="pageind" data-testid="page-indicator" data-nums>Page {currentPage} / {totalPages}</span>
+					<button class="btn sm" onclick={() => gotoPage(currentPage + 1)} disabled={currentPage >= totalPages}>Next</button>
+				</div>
+				<span class="count badge" data-testid="annotation-count">{annotations.length} annotations</span>
 			</footer>
 
 			<details class="text-alt" data-testid="text-alternative">
@@ -1240,8 +1280,8 @@
 			>
 				<p>Delete the selected {mapMode ? 'marker' : 'annotation'}? This can be undone.</p>
 				<div class="modal-actions">
-					<button onclick={() => (confirmDeleteOpen = false)} data-testid="delete-cancel">Cancel</button>
-					<button class="danger" onclick={confirmDelete} data-testid="delete-confirm">Delete</button>
+					<button class="btn" onclick={() => (confirmDeleteOpen = false)} data-testid="delete-cancel">Cancel</button>
+					<button class="btn danger" onclick={confirmDelete} data-testid="delete-confirm">Delete</button>
 				</div>
 			</div>
 		</div>
@@ -1254,57 +1294,115 @@
 		flex-direction: column;
 		gap: var(--space-3);
 	}
+	/* command bar */
 	.vhead {
 		display: flex;
 		justify-content: space-between;
-		align-items: flex-start;
+		align-items: center;
 		gap: var(--space-3);
 		flex-wrap: wrap;
+		padding: var(--space-2) var(--space-3);
+		background: var(--surface-glass);
+		border: var(--line);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-1);
+		backdrop-filter: blur(10px);
 	}
-	.eyebrow {
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		font-size: 0.75rem;
-		color: var(--brand-muted);
-	}
-	h1 {
-		font-size: 1.4rem;
+	.vhead h1 {
+		font-size: 1.05rem;
+		letter-spacing: -0.01em;
+		max-width: 22rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.actions {
 		display: flex;
 		gap: var(--space-2);
 		align-items: center;
 		flex-wrap: wrap;
+		justify-content: flex-end;
 	}
-	.actions button,
-	.tools button {
-		padding: var(--space-1) var(--space-2);
-		background: var(--brand-surface);
-		color: var(--brand-text);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
+	.grp {
+		display: inline-flex;
+		gap: var(--space-1);
+	}
+	.vline {
+		width: 1px;
+		align-self: stretch;
+		min-height: 1.5rem;
+		background: color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		margin: 0 var(--space-1);
+	}
+	/* segmented mode control */
+	.seg {
+		display: inline-flex;
+		padding: 3px;
+		gap: 2px;
+		background: color-mix(in srgb, var(--brand-bg) 55%, transparent);
+		border: var(--line-strong);
 		border-radius: var(--radius);
-		cursor: pointer;
-		font-size: 0.85rem;
 	}
-	.actions .primary {
+	.seg button {
+		padding: 0.3rem 0.75rem;
+		border: none;
+		background: transparent;
+		color: var(--brand-muted);
+		font-size: 0.82rem;
+		font-weight: 600;
+		border-radius: 3px;
+	}
+	.seg button.on {
 		background: var(--brand-primary);
 		color: var(--brand-bg);
-		font-weight: 600;
+		box-shadow: var(--shadow-1);
 	}
-	.actions button:disabled {
-		opacity: 0.55;
-		cursor: default;
-	}
-	.zoom {
-		font-variant-numeric: tabular-nums;
-		color: var(--brand-muted);
-	}
-	.layer-toggle {
-		font-size: 0.75rem;
-		color: var(--brand-muted);
-		display: flex;
+	/* zoom group pill */
+	.zoomgrp {
+		display: inline-flex;
 		align-items: center;
 		gap: var(--space-1);
+	}
+	.zoom {
+		min-width: 3rem;
+		text-align: center;
+		font-size: 0.8rem;
+		font-family: var(--brand-font-mono);
+		color: var(--brand-muted);
+	}
+	.stylesel {
+		width: auto;
+		padding: 0.32rem 1.8rem 0.32rem 0.6rem;
+		font-size: 0.8rem;
+		text-transform: capitalize;
+		background-position:
+			calc(100% - 14px) 0.95em,
+			calc(100% - 9px) 0.95em;
+	}
+	.ai {
+		border-color: color-mix(in srgb, var(--brand-accent) 55%, transparent);
+		color: var(--brand-accent);
+	}
+	.layer-toggle {
+		font-size: 0.78rem;
+		color: var(--brand-muted);
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		white-space: nowrap;
+	}
+	.layer-toggle input {
+		width: auto;
+	}
+
+	.briefing {
+		background: color-mix(in srgb, var(--brand-accent) 9%, transparent);
+		border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+		border-left: 3px solid var(--brand-accent);
+		border-radius: var(--radius);
+		padding: var(--space-3) var(--space-4);
+		font-size: 0.92rem;
+		line-height: 1.55;
 	}
 	.share-note {
 		font-size: 0.85rem;
@@ -1314,14 +1412,8 @@
 		color: var(--brand-primary);
 		word-break: break-all;
 	}
-	.briefing {
-		background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
-		border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
-		border-radius: var(--radius);
-		padding: var(--space-3);
-		font-size: 0.9rem;
-		line-height: 1.5;
-	}
+
+	/* workspace: tool rail + canvas + panel */
 	.workspace {
 		display: flex;
 		gap: var(--space-3);
@@ -1330,30 +1422,58 @@
 	.tools {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1);
-		min-width: 7rem;
+		gap: var(--space-2);
+		width: 9.5rem;
+		flex-shrink: 0;
+		padding: var(--space-3);
+		position: sticky;
+		top: 5rem;
 	}
-	.tools button.active {
-		background: var(--brand-primary);
-		color: var(--brand-bg);
-		font-weight: 600;
+	.tool-group {
+		font-size: 0.62rem;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		font-family: var(--brand-font-mono);
+		color: var(--brand-muted);
+		margin-top: var(--space-1);
+	}
+	.tool-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-1);
+	}
+	.tool-grid .btn {
+		padding: 0.4rem 0.3rem;
 	}
 	.color {
 		margin-top: var(--space-2);
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		color: var(--brand-muted);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
 	}
+	.color input {
+		width: 100%;
+		height: 2rem;
+		padding: 2px;
+		cursor: pointer;
+	}
+
 	.canvas-area {
 		flex: 1;
 		min-width: 0;
 		overflow: auto;
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
-		border-radius: var(--radius);
-		padding: var(--space-3);
+		background:
+			linear-gradient(color-mix(in srgb, var(--brand-secondary) 12%, transparent) 1px, transparent 1px),
+			linear-gradient(90deg, color-mix(in srgb, var(--brand-secondary) 12%, transparent) 1px, transparent 1px),
+			var(--brand-bg);
+		background-size: 24px 24px;
+		border: var(--line);
+		border-radius: var(--radius-lg);
+		padding: var(--space-4);
+		box-shadow: inset 0 0 60px -20px rgba(0, 0, 0, 0.6);
+		min-height: 60vh;
 	}
 	.canvas-stack {
 		position: relative;
@@ -1361,7 +1481,8 @@
 	}
 	.pdf-layer {
 		display: block;
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+		border-radius: 2px;
+		box-shadow: var(--shadow-3);
 	}
 	.ann-layer {
 		position: absolute;
@@ -1375,48 +1496,34 @@
 	.ann-layer.panning {
 		cursor: grab;
 	}
-	.style-pick {
-		font-size: 0.75rem;
-		color: var(--brand-muted);
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-	}
+
 	.modal-backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
+		background: color-mix(in srgb, var(--brand-bg) 55%, transparent);
+		backdrop-filter: blur(4px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		z-index: 50;
+		animation: pf-rise var(--dur-2) var(--ease-out) both;
 	}
 	.modal {
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 45%, transparent);
-		border-radius: var(--radius);
+		background: var(--surface-glass);
+		border: var(--line-strong);
+		border-radius: var(--radius-lg);
 		padding: var(--space-4);
 		max-width: 22rem;
+		box-shadow: var(--shadow-3);
+		backdrop-filter: blur(16px);
 	}
 	.modal-actions {
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--space-2);
-		margin-top: var(--space-3);
+		margin-top: var(--space-4);
 	}
-	.modal button {
-		padding: var(--space-1) var(--space-3);
-		border-radius: var(--radius);
-		border: 1px solid var(--brand-secondary);
-		background: transparent;
-		color: var(--brand-text);
-		cursor: pointer;
-	}
-	.modal .danger {
-		background: #b22234;
-		color: #fff;
-		border-color: #b22234;
-	}
+
 	.pager {
 		display: flex;
 		align-items: center;
@@ -1424,32 +1531,53 @@
 		margin-top: var(--space-3);
 		color: var(--brand-muted);
 	}
-	.pager button {
-		padding: var(--space-1) var(--space-2);
-		background: var(--brand-surface);
-		color: var(--brand-text);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
-		border-radius: var(--radius);
-		cursor: pointer;
+	.pagergrp {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.pageind {
+		font-size: 0.82rem;
+		font-family: var(--brand-font-mono);
+		color: var(--brand-muted);
 	}
 	.pager .count {
 		margin-left: auto;
 	}
+
 	.text-alt {
 		margin-top: var(--space-3);
 		font-size: 0.85rem;
 		color: var(--brand-muted);
+		border-top: var(--line);
+		padding-top: var(--space-3);
 	}
 	.text-alt summary {
 		cursor: pointer;
 		color: var(--brand-text);
+		font-weight: 600;
 	}
 	.text-alt h3 {
-		font-size: 0.85rem;
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--brand-primary);
 		margin-top: var(--space-2);
-		color: var(--brand-text);
 	}
 	.text-alt ul {
 		margin: 0 0 var(--space-1) var(--space-3);
+	}
+
+	@media (max-width: 50rem) {
+		.tools {
+			position: static;
+			width: 100%;
+		}
+		.workspace {
+			flex-direction: column;
+		}
+		.vhead h1 {
+			max-width: 100%;
+		}
 	}
 </style>

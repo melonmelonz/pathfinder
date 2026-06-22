@@ -159,14 +159,23 @@
 		flex-wrap: wrap;
 	}
 	.ng911 {
-		padding: var(--space-2) var(--space-3);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 45%, transparent);
+		padding: 0.5rem 0.95rem;
+		background: var(--surface-glass);
+		border: var(--line-strong);
 		border-radius: var(--radius);
 		text-decoration: none;
 		color: var(--brand-text);
 		font-size: 0.85rem;
 		font-weight: 600;
+		transition:
+			transform var(--dur-1) var(--ease),
+			border-color var(--dur-1) var(--ease),
+			background var(--dur-1) var(--ease);
+	}
+	.ng911:hover {
+		transform: translateY(-1px);
+		border-color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 	}
 	.eyebrow {
 		text-transform: uppercase;

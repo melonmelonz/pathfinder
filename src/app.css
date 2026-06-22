@@ -205,6 +205,222 @@ pre {
 	backdrop-filter: blur(12px);
 }
 
+/* ============================================================
+   GLOBAL CONTROL SYSTEM
+   One consistent language for every button, input, select, table and
+   badge across the app. Components opt in with these class names (or get
+   the element baseline for free). Brand COLOR only via var(--brand-*).
+   ============================================================ */
+
+/* ---- form controls: consistent console inputs everywhere ---- */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+select,
+textarea {
+	width: 100%;
+	background: color-mix(in srgb, var(--brand-bg) 55%, transparent);
+	color: var(--brand-text);
+	border: var(--line-strong);
+	border-radius: var(--radius);
+	padding: 0.55rem 0.75rem;
+	font-size: 0.92rem;
+	transition:
+		border-color var(--dur-1) var(--ease),
+		box-shadow var(--dur-2) var(--ease),
+		background var(--dur-1) var(--ease);
+}
+textarea {
+	resize: vertical;
+	min-height: 4.5rem;
+	line-height: 1.5;
+}
+input:hover,
+select:hover,
+textarea:hover {
+	border-color: color-mix(in srgb, var(--brand-secondary) 75%, transparent);
+}
+input:focus,
+select:focus,
+textarea:focus {
+	outline: none;
+	border-color: var(--brand-primary);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 22%, transparent);
+}
+input::placeholder,
+textarea::placeholder {
+	color: color-mix(in srgb, var(--brand-muted) 85%, transparent);
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+select {
+	appearance: none;
+	-webkit-appearance: none;
+	background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+		linear-gradient(135deg, currentColor 50%, transparent 50%);
+	background-position:
+		calc(100% - 18px) 1.1em,
+		calc(100% - 13px) 1.1em;
+	background-size:
+		5px 5px,
+		5px 5px;
+	background-repeat: no-repeat;
+	padding-right: 2rem;
+	cursor: pointer;
+}
+label {
+	font-weight: 600;
+}
+input[type='checkbox'],
+input[type='radio'] {
+	accent-color: var(--brand-primary);
+	width: 1rem;
+	height: 1rem;
+	cursor: pointer;
+}
+input[type='file'] {
+	font-size: 0.85rem;
+	color: var(--brand-muted);
+}
+input[type='file']::file-selector-button {
+	font: inherit;
+	margin-right: var(--space-2);
+	padding: 0.4rem 0.7rem;
+	border: var(--line-strong);
+	border-radius: var(--radius);
+	background: var(--surface-glass);
+	color: var(--brand-text);
+	cursor: pointer;
+	transition: background var(--dur-1) var(--ease);
+}
+input[type='file']::file-selector-button:hover {
+	background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+}
+
+/* ---- buttons: baseline + .btn system ---- */
+button {
+	cursor: pointer;
+	transition:
+		transform var(--dur-1) var(--ease),
+		background var(--dur-1) var(--ease),
+		border-color var(--dur-1) var(--ease),
+		box-shadow var(--dur-2) var(--ease);
+}
+button:disabled {
+	cursor: not-allowed;
+}
+/* The shared button. Use <button class="btn"> / .btn.primary / .ghost / .danger / .sm */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	padding: 0.55rem 0.95rem;
+	border-radius: var(--radius);
+	font-weight: 600;
+	font-size: 0.9rem;
+	line-height: 1;
+	text-decoration: none;
+	white-space: nowrap;
+	color: var(--brand-text);
+	background: var(--surface-glass);
+	border: var(--line-strong);
+	backdrop-filter: blur(8px);
+}
+.btn:hover:not(:disabled) {
+	transform: translateY(-1px);
+	border-color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+	background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+.btn:active:not(:disabled) {
+	transform: translateY(0);
+}
+.btn:disabled {
+	opacity: 0.5;
+}
+.btn.primary {
+	color: var(--brand-bg);
+	background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 92%, white), var(--brand-primary));
+	border-color: var(--brand-primary);
+	box-shadow: var(--shadow-1);
+}
+.btn.primary:hover:not(:disabled) {
+	box-shadow: var(--glow);
+	background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 96%, white), var(--brand-primary));
+}
+.btn.ghost {
+	background: transparent;
+	border-color: transparent;
+}
+.btn.ghost:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+	border-color: transparent;
+}
+.btn.danger {
+	color: #fff;
+	background: linear-gradient(180deg, #d8584d, #c5453b);
+	border-color: #c5453b;
+}
+.btn.danger:hover:not(:disabled) {
+	box-shadow: 0 0 22px -6px #c5453b;
+}
+.btn.sm {
+	padding: 0.32rem 0.6rem;
+	font-size: 0.8rem;
+	font-weight: 500;
+}
+.btn.active {
+	background: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+	border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+	color: var(--brand-text);
+}
+
+/* ---- badges / chips ---- */
+.badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35em;
+	font-size: 0.72rem;
+	font-family: var(--brand-font-mono);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	padding: 0.22em 0.66em;
+	border-radius: var(--radius-pill);
+	border: var(--line);
+	color: var(--brand-muted);
+	background: color-mix(in srgb, var(--brand-surface) 60%, transparent);
+}
+
+/* ---- tables: instrument readouts ---- */
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.88rem;
+}
+th,
+td {
+	text-align: left;
+	padding: 0.6rem 0.75rem;
+	border-bottom: var(--line);
+}
+thead th {
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	font-family: var(--brand-font-mono);
+	color: var(--brand-muted);
+	font-weight: 600;
+	border-bottom: var(--line-strong);
+}
+tbody tr {
+	transition: background var(--dur-1) var(--ease);
+}
+tbody tr:hover {
+	background: color-mix(in srgb, var(--brand-primary) 7%, transparent);
+}
+
 /* ---- page-load entrance: staggered reveal ---- */
 @keyframes pf-rise {
 	from {

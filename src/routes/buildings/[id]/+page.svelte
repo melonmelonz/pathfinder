@@ -279,17 +279,26 @@
 		gap: var(--space-3);
 	}
 	.star {
-		padding: var(--space-1) var(--space-3);
-		background: transparent;
+		padding: 0.45rem 0.9rem;
+		background: var(--surface-glass);
 		color: var(--brand-text);
-		border: 1px solid var(--brand-secondary);
+		border: var(--line-strong);
 		border-radius: var(--radius);
 		cursor: pointer;
 		font-weight: 600;
+		font-size: 0.85rem;
+		transition:
+			transform var(--dur-1) var(--ease),
+			background var(--dur-1) var(--ease),
+			border-color var(--dur-1) var(--ease);
+	}
+	.star:hover {
+		transform: translateY(-1px);
+		border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
 	}
 	.star.on {
-		background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-		border-color: var(--brand-primary);
+		background: color-mix(in srgb, var(--brand-primary) 20%, transparent);
+		border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
 		color: var(--brand-primary);
 	}
 	.floor-head {
@@ -299,14 +308,22 @@
 		gap: var(--space-3);
 	}
 	.batch {
-		padding: var(--space-1) var(--space-3);
-		background: var(--brand-primary);
+		padding: 0.5rem 0.95rem;
 		color: var(--brand-bg);
-		border: none;
+		background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 92%, white), var(--brand-primary));
+		border: 1px solid var(--brand-primary);
 		border-radius: var(--radius);
 		font-weight: 600;
 		cursor: pointer;
 		font-size: 0.85rem;
+		box-shadow: var(--shadow-1);
+		transition:
+			transform var(--dur-1) var(--ease),
+			box-shadow var(--dur-2) var(--ease);
+	}
+	.batch:hover:not(:disabled) {
+		transform: translateY(-1px);
+		box-shadow: var(--glow);
 	}
 	.batch:disabled {
 		opacity: 0.6;
@@ -319,13 +336,23 @@
 		flex-wrap: wrap;
 	}
 	.actions button {
-		padding: 0.1em 0.6em;
-		background: transparent;
+		padding: 0.3rem 0.6rem;
+		background: var(--surface-glass);
 		color: var(--brand-text);
-		border: 1px solid var(--brand-secondary);
+		border: var(--line-strong);
 		border-radius: var(--radius);
 		cursor: pointer;
-		font-size: 0.75rem;
+		font-size: 0.78rem;
+		font-weight: 500;
+		transition:
+			transform var(--dur-1) var(--ease),
+			background var(--dur-1) var(--ease),
+			border-color var(--dur-1) var(--ease);
+	}
+	.actions button:hover:not(:disabled) {
+		transform: translateY(-1px);
+		border-color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 	}
 	.actions button:disabled {
 		opacity: 0.5;
@@ -335,25 +362,28 @@
 		display: flex;
 		gap: var(--space-2);
 		align-items: center;
-		margin-bottom: var(--space-2);
+		margin-bottom: var(--space-3);
 	}
 	.proj-create input {
-		padding: var(--space-1) var(--space-2);
-		background: var(--brand-surface);
-		color: var(--brand-text);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
-		border-radius: var(--radius);
 		flex: 1;
 		max-width: 22rem;
 	}
 	.proj-create button {
-		padding: var(--space-1) var(--space-3);
-		background: var(--brand-primary);
+		padding: 0.5rem 0.95rem;
 		color: var(--brand-bg);
-		border: none;
+		background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 92%, white), var(--brand-primary));
+		border: 1px solid var(--brand-primary);
 		border-radius: var(--radius);
 		font-weight: 600;
 		cursor: pointer;
+		box-shadow: var(--shadow-1);
+		transition:
+			transform var(--dur-1) var(--ease),
+			box-shadow var(--dur-2) var(--ease);
+	}
+	.proj-create button:hover {
+		transform: translateY(-1px);
+		box-shadow: var(--glow);
 	}
 	.list {
 		list-style: none;
@@ -367,15 +397,21 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-3);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		padding: var(--space-3) var(--space-4);
+		background: var(--surface-glass);
+		border: var(--line);
 		border-radius: var(--radius);
 		color: var(--brand-text);
 		text-decoration: none;
+		transition:
+			background var(--dur-1) var(--ease),
+			border-color var(--dur-1) var(--ease),
+			transform var(--dur-1) var(--ease);
 	}
 	a.row:hover {
 		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+		border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+		transform: translateX(2px);
 	}
 	.row-name {
 		font-weight: 600;
@@ -385,27 +421,19 @@
 		font-size: 0.85rem;
 		margin-left: auto;
 	}
-	.badge {
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.15em 0.6em;
-		border-radius: 999px;
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 50%, transparent);
-		color: var(--brand-muted);
-	}
 	.muted {
 		color: var(--brand-muted);
 	}
 	.empty {
-		background: var(--brand-surface);
-		border: 1px dashed color-mix(in srgb, var(--brand-secondary) 50%, transparent);
-		border-radius: var(--radius);
+		background: var(--surface-glass);
+		border: 1px dashed color-mix(in srgb, var(--brand-secondary) 55%, transparent);
+		border-radius: var(--radius-lg);
 		padding: var(--space-5);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
 		align-items: flex-start;
+		backdrop-filter: blur(8px);
 	}
 	.empty-title {
 		font-size: 1.2rem;
