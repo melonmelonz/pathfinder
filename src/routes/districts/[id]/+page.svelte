@@ -72,7 +72,11 @@
 		font-size: 1.6rem;
 	}
 	h2 {
-		font-size: 1.1rem;
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.14em;
+		font-family: var(--brand-font-mono);
+		color: var(--brand-muted);
 		margin-bottom: calc(-1 * var(--space-2));
 	}
 	.cards {
@@ -86,23 +90,30 @@
 	.card {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
-		border-radius: var(--radius);
+		gap: var(--space-2);
+		background: var(--surface-glass);
+		border: var(--line);
+		border-radius: var(--radius-lg);
 		padding: var(--space-4);
 		color: var(--brand-muted);
-		font-size: 0.85rem;
+		font-size: 0.78rem;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		letter-spacing: 0.08em;
+		box-shadow: var(--shadow-1);
+		backdrop-filter: blur(8px);
+		transition: transform var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+	}
+	.card:hover {
+		transform: translateY(-3px);
+		border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
 	}
 	.count {
-		font-size: 2rem;
+		font-size: 2.6rem;
 		font-weight: 700;
 		font-family: var(--brand-font-display);
 		color: var(--brand-primary);
 		line-height: 1;
-		letter-spacing: 0;
+		letter-spacing: -0.03em;
 	}
 	.list {
 		list-style: none;
@@ -116,15 +127,18 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-3);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		padding: var(--space-3) var(--space-4);
+		background: var(--surface-glass);
+		border: var(--line);
 		border-radius: var(--radius);
 		text-decoration: none;
 		color: var(--brand-text);
+		transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 	}
 	.row:hover {
 		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+		border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+		transform: translateX(2px);
 	}
 	.row-name {
 		font-weight: 600;

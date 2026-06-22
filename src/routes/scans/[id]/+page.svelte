@@ -342,29 +342,77 @@
 
 <style>
 	.scan { display: flex; flex-direction: column; gap: var(--space-3); }
-	.shead { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; }
-	.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--brand-muted); }
-	h1 { font-size: 1.4rem; }
-	h2 { font-size: 0.95rem; margin: var(--space-2) 0 var(--space-1); }
+	.shead {
+		display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;
+		padding: var(--space-2) var(--space-3);
+		background: var(--surface-glass); border: var(--line); border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-1); backdrop-filter: blur(10px);
+	}
+	h1 { font-size: 1.05rem; letter-spacing: -0.01em; }
+	h2 {
+		font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em;
+		font-family: var(--brand-font-mono); color: var(--brand-muted);
+		margin: var(--space-3) 0 var(--space-1);
+	}
 	.muted { color: var(--brand-muted); font-size: 0.85rem; }
 	.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-	.actions button, .marker-tools button, .panel button { padding: var(--space-1) var(--space-2); background: var(--brand-surface); color: var(--brand-text); border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent); border-radius: var(--radius); cursor: pointer; font-size: 0.8rem; }
-	.actions .primary { background: var(--brand-primary); color: var(--brand-bg); font-weight: 600; }
-	button.active { background: var(--brand-primary); color: var(--brand-bg); font-weight: 600; }
-	button:disabled { opacity: 0.55; cursor: default; }
+	.actions button, .marker-tools button {
+		padding: 0.4rem 0.75rem; background: var(--surface-glass); color: var(--brand-text);
+		border: var(--line-strong); border-radius: var(--radius); cursor: pointer; font-size: 0.8rem; font-weight: 500;
+		transition: transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+	}
+	.actions button:hover:not(:disabled), .marker-tools button:hover:not(:disabled) {
+		transform: translateY(-1px); border-color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+	}
+	.actions .primary {
+		color: var(--brand-bg); font-weight: 600; border-color: var(--brand-primary);
+		background: linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 92%, white), var(--brand-primary));
+		box-shadow: var(--shadow-1);
+	}
+	.actions .primary:hover:not(:disabled) { box-shadow: var(--glow); }
+	button.active { background: color-mix(in srgb, var(--brand-primary) 20%, transparent); border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent); color: var(--brand-text); font-weight: 600; }
+	button:disabled { opacity: 0.55; cursor: not-allowed; }
 	.layout { display: flex; gap: var(--space-3); align-items: flex-start; flex-wrap: wrap; }
-	.stage { flex: 1; min-width: 320px; position: relative; background: var(--brand-surface); border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent); border-radius: var(--radius); overflow: hidden; }
-	.host { width: 100%; min-height: 420px; }
+	.stage {
+		flex: 1; min-width: 320px; position: relative; overflow: hidden;
+		background:
+			linear-gradient(color-mix(in srgb, var(--brand-secondary) 12%, transparent) 1px, transparent 1px),
+			linear-gradient(90deg, color-mix(in srgb, var(--brand-secondary) 12%, transparent) 1px, transparent 1px),
+			var(--brand-bg);
+		background-size: 24px 24px;
+		border: var(--line); border-radius: var(--radius-lg);
+		box-shadow: inset 0 0 60px -20px rgba(0,0,0,0.6), var(--shadow-1);
+	}
+	.host { width: 100%; min-height: 460px; }
 	.host :global(canvas) { display: block; width: 100%; cursor: crosshair; }
-	video { width: 100%; display: block; background: #000; }
+	video { width: 100%; display: block; background: #000; border-radius: var(--radius-lg); }
 	.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--brand-muted); padding: var(--space-4); text-align: center; }
 	.overlay.err { color: #e2574c; }
-	.measure { position: absolute; left: var(--space-3); bottom: var(--space-3); background: rgba(10,19,30,0.85); color: #fff; padding: var(--space-1) var(--space-2); border-radius: var(--radius); font-variant-numeric: tabular-nums; }
-	.panel { width: 16rem; }
-	.marker-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-	.scale { display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.75rem; color: var(--brand-muted); margin-top: var(--space-2); }
+	.measure {
+		position: absolute; left: var(--space-3); bottom: var(--space-3);
+		background: color-mix(in srgb, var(--brand-bg) 80%, transparent); color: var(--brand-text);
+		padding: 0.4rem 0.7rem; border-radius: var(--radius); border: var(--line-strong);
+		font-variant-numeric: tabular-nums; font-family: var(--brand-font-mono); font-size: 0.85rem;
+		backdrop-filter: blur(8px); box-shadow: var(--shadow-2);
+	}
+	.panel { width: 16rem; flex-shrink: 0; padding: var(--space-3); }
+	.marker-tools { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); }
+	.scale { display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.72rem; color: var(--brand-muted); margin-top: var(--space-3); }
 	.mlist, .vlist, .rlist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.85rem; }
-	.mtype { font-weight: 600; color: var(--brand-primary); }
-	.x { margin-left: auto; padding: 0 0.4em; }
-	button.current { outline: 2px solid var(--brand-primary); }
+	.mlist li, .vlist li, .rlist li { display: flex; align-items: center; gap: var(--space-2); }
+	.vlist button, .rlist button {
+		width: 100%; text-align: left; padding: 0.4rem 0.6rem; background: var(--surface-glass);
+		color: var(--brand-text); border: var(--line); border-radius: var(--radius); cursor: pointer; font-size: 0.82rem;
+		transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+	}
+	.vlist button:hover:not(:disabled), .rlist button:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+		border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+	}
+	.mtype { font-weight: 600; color: var(--brand-primary); font-family: var(--brand-font-mono); font-size: 0.78rem; }
+	.x { margin-left: auto; padding: 0 0.45em; background: transparent; border: none; color: var(--brand-muted); cursor: pointer; font-size: 1rem; }
+	.x:hover { color: #e2574c; }
+	button.current { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
+	@media (max-width: 50rem) { .panel { width: 100%; } }
 </style>

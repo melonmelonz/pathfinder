@@ -143,7 +143,11 @@
 		gap: var(--space-2);
 	}
 	h2 {
-		font-size: 1.1rem;
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.14em;
+		font-family: var(--brand-font-mono);
+		color: var(--brand-muted);
 	}
 	.list {
 		list-style: none;
@@ -157,11 +161,15 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-3);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		padding: var(--space-3) var(--space-4);
+		background: var(--surface-glass);
+		border: var(--line);
 		border-radius: var(--radius);
 		flex-wrap: wrap;
+		transition: border-color var(--dur-1) var(--ease);
+	}
+	.row:hover {
+		border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
 	}
 	.type {
 		font-weight: 600;
@@ -170,6 +178,9 @@
 	.name {
 		color: var(--brand-primary);
 		text-decoration: none;
+	}
+	.name:hover {
+		text-decoration: underline;
 	}
 	.badge {
 		font-size: 0.75rem;

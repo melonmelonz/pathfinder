@@ -78,15 +78,12 @@
 </section>
 
 <style>
-	.search { display: flex; flex-direction: column; gap: var(--space-3); }
-	h1 { font-size: 1.6rem; }
+	.search { display: flex; flex-direction: column; gap: var(--space-3); max-width: 44rem; }
+	h1 { font-size: 1.8rem; }
 	input {
-		padding: var(--space-3);
-		font-size: 1rem;
-		background: var(--brand-surface);
-		color: var(--brand-text);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 45%, transparent);
-		border-radius: var(--radius);
+		padding: 0.85rem 1rem;
+		font-size: 1.05rem;
+		box-shadow: var(--shadow-1);
 	}
 	.muted { color: var(--brand-muted); }
 	.results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
@@ -95,26 +92,21 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		padding: var(--space-3);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		padding: var(--space-3) var(--space-4);
+		background: var(--surface-glass);
+		border: var(--line);
 		border-radius: var(--radius);
 		color: var(--brand-text);
 		cursor: pointer;
 		text-align: left;
+		transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 	}
-	.hit:hover { background: color-mix(in srgb, var(--brand-primary) 12%, transparent); }
-	.badge {
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		padding: 0.15em 0.6em;
-		border-radius: 999px;
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 50%, transparent);
-		color: var(--brand-muted);
-		min-width: 5rem;
-		text-align: center;
+	.hit:hover {
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+		border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+		transform: translateX(2px);
 	}
+	.badge { min-width: 5.5rem; justify-content: center; }
 	.title { font-weight: 600; }
 	.sub { color: var(--brand-muted); font-size: 0.85rem; margin-left: auto; }
 </style>

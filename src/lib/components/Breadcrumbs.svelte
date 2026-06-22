@@ -112,16 +112,18 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35em;
-		background: transparent;
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent);
+		background: var(--surface-glass);
+		border: var(--line);
 		border-radius: var(--radius);
 		color: var(--brand-text);
 		padding: var(--space-1) var(--space-2);
 		cursor: pointer;
 		font: inherit;
+		transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 	}
 	.switcher:hover {
 		background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+		border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
 	}
 	.caret {
 		font-size: 0.7em;
@@ -134,17 +136,18 @@
 	}
 	.menu {
 		position: absolute;
-		top: calc(100% + 4px);
+		top: calc(100% + 6px);
 		left: 0;
 		z-index: 20;
 		min-width: 12rem;
 		list-style: none;
 		margin: 0;
 		padding: var(--space-1);
-		background: var(--brand-surface);
-		border: 1px solid color-mix(in srgb, var(--brand-secondary) 45%, transparent);
-		border-radius: var(--radius);
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+		background: var(--surface-glass);
+		border: var(--line-strong);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-3);
+		backdrop-filter: blur(14px);
 	}
 	.menu li {
 		margin: 0;
