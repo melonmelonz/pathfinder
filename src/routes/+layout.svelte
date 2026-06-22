@@ -11,8 +11,6 @@
 	import { activeBrand, brandToCssVars } from '$lib/brand';
 	import Logo from '$lib/components/Logo.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
-	// LIVE TDD DEMO (step 4): uncomment after you implement the initials() helper.
-	// import { initials } from '$lib/utils/initials';
 
 	// White-label shell (Epic E1): the active brand's tokens are injected onto
 	// :root as CSS custom properties; every component references var(--brand-*).
@@ -55,10 +53,6 @@
 				{#if user.role === 'admin'}
 					<a href="/admin" class="navlink" class:active={isActive('/admin')} data-testid="nav-admin">Admin</a>
 				{/if}
-				<!-- LIVE TDD DEMO (step 4): after you implement initials() live,
-				     uncomment this avatar + its import (top of <script>) + the
-				     .avatar CSS block below, and the user's initials light up. -->
-				<!-- <span class="avatar" aria-hidden="true">{initials(user.name)}</span> -->
 				<span class="who" data-testid="nav-user">
 					<span class="who-name">{user.name}</span>
 					<span class="who-role">{user.role}</span>
@@ -83,6 +77,28 @@
 </div>
 
 <Toaster />
+
+<!-- ============================================================
+     LIVE TDD DEMO - Step 4 (the visual payoff).
+     Uncomment THIS BLOCK ONLY (one place, no jumping around) after your
+     initials() test goes green, then reload: the signed-in user gets an
+     avatar badge in the corner. Self-contained - no import, no extra CSS.
+     ============================================================ -->
+<!--
+{#if user}
+	<div
+		aria-hidden="true"
+		style="position: fixed; top: 0.8rem; right: 1.25rem; z-index: 150;
+		       display: grid; place-items: center; width: 2rem; height: 2rem;
+		       border-radius: 999px; font-family: var(--brand-font-mono);
+		       font-size: 0.75rem; font-weight: 700; color: var(--brand-primary);
+		       background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+		       border: 1px solid color-mix(in srgb, var(--brand-primary) 45%, transparent);"
+	>
+		{user.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+	</div>
+{/if}
+-->
 
 <style>
 	.skip-link {
@@ -185,21 +201,6 @@
 		color: var(--brand-primary);
 		font-family: var(--brand-font-mono);
 	}
-
-	/* LIVE TDD DEMO (step 4): uncomment together with the avatar span + import.
-	.avatar {
-		display: grid;
-		place-items: center;
-		width: 2rem;
-		height: 2rem;
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-		color: var(--brand-primary);
-		font-family: var(--brand-font-mono);
-		font-size: 0.75rem;
-		font-weight: 700;
-	}
-	*/
 
 	.btn-cta {
 		display: inline-block;

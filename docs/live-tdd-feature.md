@@ -94,18 +94,17 @@ to a spec, not to one happy-path example.
 
 ## Step 4 (optional bonus) - make it visible in the app
 
-This is **pre-wired and commented** in `src/routes/+layout.svelte` so you just
-uncomment three short blocks live (each marked `LIVE TDD DEMO (step 4)`):
+There is **one commented block at the very bottom of
+`src/routes/+layout.svelte`** (right above `<style>`, marked
+`LIVE TDD DEMO - Step 4`). Uncomment that **single block** and reload - the
+signed-in user gets an initials avatar badge in the top-right corner. It's
+self-contained (inline style, no import, no CSS to touch elsewhere), so there's
+nothing to jump around for.
 
-1. the import near the top of `<script>`:
-   `// import { initials } from '$lib/utils/initials';`
-2. the avatar in the `.who` block:
-   `<!-- <span class="avatar" aria-hidden="true">{initials(user.name)}</span> -->`
-3. the `.avatar { ... }` CSS block at the bottom of `<style>`.
-
-Uncomment all three, save - the signed-in user now shows a "TA" avatar in the
-header. *"Test-first, then lit up in the real UI by uncommenting three lines."*
-(The header has `data-testid="nav-user"`, so this is exactly where it appears.)
+*"Test-first, then a one-line uncomment lights it up in the real UI."* The block
+inlines the same initials logic you just wrote; to drive it from your tested
+`initials()` instead, swap the inline expression for `initials(user.name)` and
+add the import.
 
 ---
 
@@ -113,7 +112,7 @@ header. *"Test-first, then lit up in the real UI by uncommenting three lines."*
 
 ```bash
 rm tests/unit/initials.test.ts src/lib/utils/initials.ts
-# then re-comment the three Step-4 blocks in src/routes/+layout.svelte
+# then re-comment the one Step-4 block at the bottom of src/routes/+layout.svelte
 ```
 
 The repo is back to its committed, all-green state.
