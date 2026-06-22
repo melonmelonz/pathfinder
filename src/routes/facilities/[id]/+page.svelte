@@ -3,6 +3,7 @@
 	import type { PageData } from './$types';
 
 	import { invalidateAll } from '$app/navigation';
+	import { toasts } from '$lib/stores/toasts.svelte';
 
 	let { data }: { data: PageData } = $props();
 	const facility = $derived(data.facility);
@@ -33,13 +34,16 @@
 	async function saveCompliance(e: Event) {
 		e.preventDefault();
 		savingCm = true;
-		await fetch(`/api/facilities/${facility.id}/compliance`, {
+		const res = await fetch(`/api/facilities/${facility.id}/compliance`, {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(cm)
 		});
 		savingCm = false;
-		await invalidateAll();
+		if (res.ok) {
+			toasts.success('Compliance metadata saved.');
+			await invalidateAll();
+		} else toasts.error('Could not save compliance metadata.');
 	}
 
 	// Breadcrumb: Dashboard / [district?] / [facility-switcher]. Capped at three

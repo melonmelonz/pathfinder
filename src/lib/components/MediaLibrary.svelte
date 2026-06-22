@@ -5,6 +5,7 @@
 	// linked for download (never served).
 	import { invalidateAll } from '$app/navigation';
 	import { uploadMedia } from '$lib/engines/media/upload-client';
+	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { MediaType } from '$lib/engines/media/storage-policy';
 
 	interface MediaRow {
@@ -68,9 +69,11 @@
 				(f) => (progress = f)
 			);
 			if (fileInput) fileInput.value = '';
+			toasts.success(`${file.name} uploaded.`);
 			await invalidateAll();
 		} catch (e) {
 			errorMsg = e instanceof Error ? e.message : 'Upload failed.';
+			toasts.error(`Upload failed: ${errorMsg}`);
 		} finally {
 			busy = false;
 		}

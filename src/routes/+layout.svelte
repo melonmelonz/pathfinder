@@ -1,17 +1,19 @@
 <script lang="ts">
 	import '../app.css';
+	// Self-hosted distinctive typefaces (CSP-safe, font-src 'self'). These back
+	// the var(--brand-font-*) families declared in the active brand profile.
+	import '@fontsource-variable/bricolage-grotesque';
+	import '@fontsource-variable/hanken-grotesk';
+	import '@fontsource-variable/jetbrains-mono';
+
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { activeBrand, brandToCssVars } from '$lib/brand';
 	import Logo from '$lib/components/Logo.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 
-	// White-label shell (Epic E1).
-	// The active brand's tokens are injected onto :root as CSS custom
-	// properties. Every component below references var(--brand-*) only.
-	//
-	// TO REBRAND: add a profile in src/lib/brand/profiles/<id>.ts, register
-	// it in src/lib/brand/index.ts, and build with VITE_BRAND=<id>.
-	// Default brand is 'pathfinder'. No component edits required.
-
+	// White-label shell (Epic E1): the active brand's tokens are injected onto
+	// :root as CSS custom properties; every component references var(--brand-*).
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -19,9 +21,10 @@
 	const cssVars = brandToCssVars(brand);
 	const user = $derived(data.user);
 
-	// Mark the document hydrated once the client app mounts. Lets E2E tests wait
-	// for interactivity before driving progressively-enhanced forms (no race
-	// against a pre-hydration native submit).
+	// Active-section highlight for the primary nav.
+	const path = $derived(page.url.pathname);
+	const isActive = (href: string) => path === href || path.startsWith(href + '/');
+
 	onMount(() => {
 		document.documentElement.setAttribute('data-hydrated', 'true');
 	});
@@ -29,7 +32,6 @@
 
 <svelte:head>
 	<title>{brand.productName} - {brand.tagline}</title>
-	<!-- Inject brand tokens onto the document root. -->
 	{@html `<style>:root { ${cssVars} }</style>`}
 </svelte:head>
 
@@ -40,15 +42,20 @@
 		<a class="brand-link" href="/" aria-label={`${brand.productName} home`}>
 			<Logo label={brand.productName} size={26} />
 		</a>
+
 		<nav class="site-nav" aria-label="Primary">
 			{#if user}
-				<a href="/search" class="btn-ghost" data-testid="nav-search">Search</a>
-				<a href="/dashboard" class="btn-ghost">Dashboard</a>
+				<a href="/search" class="navlink" class:active={isActive('/search')} data-testid="nav-search">Search</a>
+				<a href="/dashboard" class="navlink" class:active={isActive('/dashboard')}>Dashboard</a>
 				{#if user.role === 'admin'}
-					<a href="/admin" class="btn-ghost" data-testid="nav-admin">Admin</a>
+					<a href="/admin" class="navlink" class:active={isActive('/admin')} data-testid="nav-admin">Admin</a>
 				{/if}
+				<span class="who" data-testid="nav-user">
+					<span class="who-name">{user.name}</span>
+					<span class="who-role">{user.role}</span>
+				</span>
 			{:else}
-				<a href="/login" class="btn-ghost">Sign in</a>
+				<a href="/login" class="btn-cta">Sign in</a>
 			{/if}
 		</nav>
 	</header>
@@ -60,10 +67,13 @@
 	<footer class="site-footer">
 		<p class="legal">{brand.legalFooter}</p>
 		<p class="contact">
+			<span class="status-dot" aria-hidden="true"></span>
 			<a href={`mailto:${brand.supportEmail}`}>{brand.supportEmail}</a>
 		</p>
 	</footer>
 </div>
+
+<Toaster />
 
 <style>
 	.skip-link {
@@ -73,8 +83,8 @@
 		background: var(--brand-surface);
 		color: var(--brand-text);
 		padding: var(--space-2) var(--space-3);
-		z-index: 100;
-		border: 1px solid var(--brand-secondary);
+		z-index: 300;
+		border: var(--line-strong);
 		border-radius: var(--radius);
 	}
 	.skip-link:focus {
@@ -89,15 +99,104 @@
 	}
 
 	.site-header {
+		position: sticky;
+		top: 0;
+		z-index: 100;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
 		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: color-mix(in srgb, var(--brand-bg) 72%, transparent);
+		backdrop-filter: blur(14px) saturate(1.4);
+		border-bottom: var(--line);
 	}
 	.brand-link {
 		text-decoration: none;
+		transition: opacity var(--dur-1) var(--ease);
+	}
+	.brand-link:hover {
+		opacity: 0.85;
+	}
+
+	.site-nav {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+	.navlink {
+		position: relative;
+		padding: var(--space-2) var(--space-3);
+		text-decoration: none;
+		color: var(--brand-muted);
+		font-size: 0.92rem;
+		font-weight: 500;
+		border-radius: var(--radius);
+		transition:
+			color var(--dur-1) var(--ease),
+			background var(--dur-1) var(--ease);
+	}
+	.navlink:hover {
+		color: var(--brand-text);
+		background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+	}
+	.navlink.active {
+		color: var(--brand-text);
+	}
+	/* an underline "readout" tick for the active section */
+	.navlink.active::after {
+		content: '';
+		position: absolute;
+		left: var(--space-3);
+		right: var(--space-3);
+		bottom: 0.25rem;
+		height: 2px;
+		border-radius: 2px;
+		background: var(--brand-primary);
+		box-shadow: 0 0 10px -1px color-mix(in srgb, var(--brand-primary) 70%, transparent);
+	}
+
+	.who {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		line-height: 1.1;
+		margin-left: var(--space-2);
+		padding-left: var(--space-3);
+		border-left: var(--line);
+	}
+	.who-name {
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+	.who-role {
+		font-size: 0.66rem;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--brand-primary);
+		font-family: var(--brand-font-mono);
+	}
+
+	.btn-cta {
+		display: inline-block;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius);
+		text-decoration: none;
+		font-weight: 600;
+		color: var(--brand-bg);
+		background: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--brand-primary) 92%, white),
+			var(--brand-primary)
+		);
+		box-shadow: var(--shadow-1);
+		transition:
+			transform var(--dur-1) var(--ease),
+			box-shadow var(--dur-2) var(--ease);
+	}
+	.btn-cta:hover {
+		transform: translateY(-1px);
+		box-shadow: var(--glow);
 	}
 
 	.site-main {
@@ -106,33 +205,46 @@
 		max-width: var(--maxw);
 		margin: 0 auto;
 		padding: var(--space-5) var(--space-4);
+		animation: pf-rise var(--dur-3) var(--ease-out) both;
 	}
 
 	.site-footer {
-		border-top: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
+		border-top: var(--line);
 		padding: var(--space-4);
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
 		justify-content: space-between;
-		font-size: 0.85rem;
+		align-items: center;
+		font-size: 0.82rem;
 		color: var(--brand-muted);
+	}
+	.contact {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 	.site-footer a {
 		color: var(--brand-primary);
+		text-decoration: none;
+	}
+	.site-footer a:hover {
+		text-decoration: underline;
+	}
+	.status-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #2e9e6b;
+		box-shadow: 0 0 8px 0 color-mix(in srgb, #2e9e6b 80%, transparent);
 	}
 
-	.btn-ghost {
-		display: inline-block;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--brand-secondary);
-		border-radius: var(--radius);
-		text-decoration: none;
-		color: var(--brand-text);
-		background: transparent;
-		transition: background 0.15s ease;
-	}
-	.btn-ghost:hover {
-		background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+	@media (max-width: 38rem) {
+		.who {
+			display: none;
+		}
+		.site-main {
+			padding: var(--space-4) var(--space-3);
+		}
 	}
 </style>

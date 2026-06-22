@@ -7,6 +7,7 @@
 	// WebGL2 is unavailable. All geometry math comes from the tested engine.
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 	import { distance3d, toMeters, formatMeasurement, type Vec3 } from '$lib/engines/splat-viewer/measure';
 	import {
@@ -205,7 +206,7 @@
 
 	async function save() {
 		saving = true;
-		await Promise.all([
+		const [m, v] = await Promise.all([
 			fetch(`/api/media/${data.media.id}/markers3d`, {
 				method: 'PUT',
 				headers: { 'content-type': 'application/json' },
@@ -238,7 +239,12 @@
 			})
 		]);
 		saving = false;
-		dirty = false;
+		if (m.ok && v.ok) {
+			dirty = false;
+			toasts.success('3D markers and viewpoints saved.');
+		} else {
+			toasts.error('Could not save the 3D scene. Try again.');
+		}
 	}
 
 	const tour = $derived(tourOrder(viewpoints));

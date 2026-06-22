@@ -2,34 +2,59 @@
 	// Admin console (Epic E13): platform stats, user management, audit viewer,
 	// search reindex, immutable audit export.
 	import { invalidateAll } from '$app/navigation';
+	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
+
+	// Standard error extractor for failed API responses.
+	async function failMsg(res: Response, fallback: string): Promise<string> {
+		const body = (await res.json().catch(() => ({}))) as { message?: string };
+		return body.message ?? `${fallback} (${res.status})`;
+	}
 
 	let reindexing = $state(false);
 	let reindexMsg = $state('');
 	async function reindex() {
 		reindexing = true;
-		const res = await fetch('/api/search/reindex', { method: 'POST' });
-		reindexMsg = res.ok ? `Reindexed ${((await res.json()) as { indexed: number }).indexed} entities.` : 'Reindex failed.';
-		reindexing = false;
+		try {
+			const res = await fetch('/api/search/reindex', { method: 'POST' });
+			if (res.ok) {
+				const n = ((await res.json()) as { indexed: number }).indexed;
+				reindexMsg = `Reindexed ${n} entities.`;
+				toasts.success(`Search reindexed - ${n} entities.`);
+			} else {
+				reindexMsg = 'Reindex failed.';
+				toasts.error(await failMsg(res, 'Reindex failed'));
+			}
+		} catch {
+			toasts.error('Reindex failed - network error.');
+		} finally {
+			reindexing = false;
+		}
 	}
 
 	async function toggleActive(id: string, active: number) {
-		await fetch(`/api/admin/users/${id}`, {
+		const res = await fetch(`/api/admin/users/${id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ active: !active })
 		});
-		await invalidateAll();
+		if (res.ok) {
+			toasts.success(active ? 'User disabled.' : 'User enabled.');
+			await invalidateAll();
+		} else toasts.error(await failMsg(res, 'Could not update user'));
 	}
 
 	async function changeRole(id: string, role: string) {
-		await fetch(`/api/admin/users/${id}`, {
+		const res = await fetch(`/api/admin/users/${id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ role })
 		});
-		await invalidateAll();
+		if (res.ok) {
+			toasts.success(`Role updated to ${role}.`);
+			await invalidateAll();
+		} else toasts.error(await failMsg(res, 'Could not change role'));
 	}
 
 	// Create user
@@ -42,11 +67,15 @@
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify(nu)
 		});
-		const errBody = res.ok ? {} : ((await res.json().catch(() => ({}))) as { message?: string });
-		createMsg = res.ok ? `Created ${nu.email}.` : `Error: ${errBody.message ?? res.status}`;
 		if (res.ok) {
+			createMsg = `Created ${nu.email}.`;
+			toasts.success(`User ${nu.email} created.`);
 			nu = { name: '', email: '', password: '', role: 'staff', org: '' };
 			await invalidateAll();
+		} else {
+			const msg = await failMsg(res, 'Could not create user');
+			createMsg = `Error: ${msg}`;
+			toasts.error(msg);
 		}
 	}
 
@@ -63,13 +92,17 @@
 		});
 		if (res.ok) {
 			issuedKey = ((await res.json()) as { rawKey: string }).rawKey;
+			toasts.success('API key issued - copy it now, it is shown once.');
 			keyName = '';
 			await invalidateAll();
-		}
+		} else toasts.error(await failMsg(res, 'Could not issue key'));
 	}
 	async function revokeKey(id: string) {
-		await fetch(`/api/admin/keys/${id}`, { method: 'DELETE' });
-		await invalidateAll();
+		const res = await fetch(`/api/admin/keys/${id}`, { method: 'DELETE' });
+		if (res.ok) {
+			toasts.success('API key revoked.');
+			await invalidateAll();
+		} else toasts.error(await failMsg(res, 'Could not revoke key'));
 	}
 
 	// Settings
@@ -77,14 +110,17 @@
 	let setVal = $state('');
 	async function saveSetting(e: Event) {
 		e.preventDefault();
-		await fetch('/api/admin/settings', {
+		const res = await fetch('/api/admin/settings', {
 			method: 'PUT',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ key: setKey, value: setVal })
 		});
-		setKey = '';
-		setVal = '';
-		await invalidateAll();
+		if (res.ok) {
+			toasts.success(`Setting "${setKey}" saved.`);
+			setKey = '';
+			setVal = '';
+			await invalidateAll();
+		} else toasts.error(await failMsg(res, 'Could not save setting'));
 	}
 
 	// Audit filter
@@ -98,6 +134,7 @@
 		if (filterSince) qs.set('since', filterSince);
 		const res = await fetch(`/api/admin/audit?${qs}`);
 		if (res.ok) filtered = ((await res.json()) as { audit: typeof filtered }).audit;
+		else toasts.error(await failMsg(res, 'Audit query failed'));
 	}
 
 	const stats = $derived(data.stats);

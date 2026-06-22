@@ -37,6 +37,7 @@
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte';
 	import { buildMapTextAlternative } from '$lib/engines/a11y/map-text';
 	import { activeBrand } from '$lib/brand';
+	import { toasts } from '$lib/stores/toasts.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -569,7 +570,12 @@
 			body: JSON.stringify({ annotations: payload })
 		});
 		saving = false;
-		if (res.ok) dirty = false;
+		if (res.ok) {
+			dirty = false;
+			toasts.success('Annotations saved.');
+		} else {
+			toasts.error('Could not save annotations. Your changes are still here - try again.');
+		}
 	}
 
 	function exportJson() {
@@ -824,7 +830,12 @@
 			body: JSON.stringify({ markers: payload })
 		});
 		saving = false;
-		if (res.ok) mapDirty = false;
+		if (res.ok) {
+			mapDirty = false;
+			toasts.success('Map markers saved.');
+		} else {
+			toasts.error('Could not save map markers. Try again.');
+		}
 	}
 
 	// Render any page to an offscreen canvas (PDF render or demo background) at a
@@ -938,11 +949,16 @@
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ page: currentPage })
 			});
-			briefing = res.ok
-				? ((await res.json()) as { briefing: string }).briefing
-				: 'Briefing unavailable (no AI provider configured).';
+			if (res.ok) {
+				briefing = ((await res.json()) as { briefing: string }).briefing;
+				toasts.success('Responder briefing generated.');
+			} else {
+				briefing = 'Briefing unavailable (no AI provider configured).';
+				toasts.error('No AI provider is configured for this deployment.');
+			}
 		} catch {
 			briefing = 'Briefing failed.';
+			toasts.error('Briefing failed - network error.');
 		} finally {
 			briefingBusy = false;
 		}
@@ -959,9 +975,12 @@
 			shareUrl = ((await res.json()) as { url: string }).url;
 			try {
 				await navigator.clipboard.writeText(shareUrl);
+				toasts.success('Read-only share link copied to clipboard.');
 			} catch {
-				/* clipboard may be blocked; the URL is shown regardless */
+				toasts.info('Read-only share link created (copy it below).');
 			}
+		} else {
+			toasts.error('Could not create a share link.');
 		}
 	}
 

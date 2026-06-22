@@ -2,6 +2,7 @@
 	// Global search (Epic E10). As-you-type query across facilities, buildings,
 	// projects, documents and marker labels, scoped server-side to the caller.
 	import { goto } from '$app/navigation';
+	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { SearchHit } from '$lib/engines/search/query';
 
 	let q = $state('');
@@ -25,13 +26,19 @@
 			return;
 		}
 		searching = true;
-		const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-		if (res.ok) {
-			const data = (await res.json()) as { hits: SearchHit[] };
-			hits = data.hits;
+		try {
+			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+			if (res.ok) {
+				hits = ((await res.json()) as { hits: SearchHit[] }).hits;
+			} else {
+				toasts.error('Search failed. Please try again.');
+			}
+		} catch {
+			toasts.error('Search failed - network error.');
+		} finally {
+			searching = false;
+			ran = true;
 		}
-		searching = false;
-		ran = true;
 	}
 
 	function onInput() {

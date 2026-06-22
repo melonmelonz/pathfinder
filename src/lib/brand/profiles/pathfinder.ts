@@ -19,9 +19,12 @@ export const pathfinder: BrandProfile = {
 		muted: '#8aa1b6'
 	},
 	fonts: {
-		display: '"Clash Display", "Satoshi", system-ui, sans-serif',
-		body: '"Satoshi", system-ui, sans-serif',
-		mono: '"JetBrains Mono", ui-monospace, monospace'
+		// Self-hosted via @fontsource (loaded in +layout.svelte), CSP-safe.
+		// Bricolage Grotesque = characterful editorial-technical display;
+		// Hanken Grotesk = clean precise body; JetBrains Mono = console/data.
+		display: '"Bricolage Grotesque Variable", "Clash Display", system-ui, sans-serif',
+		body: '"Hanken Grotesk Variable", "Satoshi", system-ui, sans-serif',
+		mono: '"JetBrains Mono Variable", ui-monospace, monospace'
 	},
 	supportEmail: 'support@pathfinderlidar.com',
 	supportPhone: '+1 (000) 000-0000',

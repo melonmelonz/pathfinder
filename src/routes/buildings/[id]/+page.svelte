@@ -5,6 +5,7 @@
 	import type { MapMarker } from '$lib/engines/map-export/markers';
 	import { availableTransitions, type ProjectStatus } from '$lib/engines/workflow/status';
 	import { invalidateAll } from '$app/navigation';
+	import { toasts } from '$lib/stores/toasts.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -20,7 +21,10 @@
 	async function toggleFavorite() {
 		const method = favorite ? 'DELETE' : 'POST';
 		const res = await fetch(`/api/buildings/${building.id}/favorite`, { method });
-		if (res.ok) favorite = ((await res.json()) as { favorite: boolean }).favorite;
+		if (res.ok) {
+			favorite = ((await res.json()) as { favorite: boolean }).favorite;
+			toasts.success(favorite ? 'Building starred.' : 'Removed from starred.');
+		} else toasts.error('Could not update favorite.');
 	}
 
 	// Batch NFPA export (Epic E6): enqueue a tracked job, then render+download an
@@ -60,6 +64,7 @@
 				});
 		}
 		batchProgress = `Exported ${done} map${done === 1 ? '' : 's'}.`;
+		toasts.success(`Batch export complete - ${done} map${done === 1 ? '' : 's'}.`);
 		batchBusy = false;
 	}
 
@@ -67,13 +72,19 @@
 	let transitioning = $state<string | null>(null);
 	async function transition(projectId: string, to: ProjectStatus) {
 		transitioning = projectId;
-		await fetch(`/api/projects/${projectId}`, {
+		const res = await fetch(`/api/projects/${projectId}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ status: to })
 		});
 		transitioning = null;
-		await invalidateAll();
+		if (res.ok) {
+			toasts.success(`Project moved to ${to.replace('_', ' ')}.`);
+			await invalidateAll();
+		} else {
+			const m = ((await res.json().catch(() => ({}))) as { message?: string }).message;
+			toasts.error(m ?? 'That status change is not allowed.');
+		}
 	}
 
 	// Create project (E4 AC-4.1.1/4.1.2)
@@ -88,24 +99,35 @@
 			body: JSON.stringify({ name: newProjectName, building_id: building.id })
 		});
 		if (res.ok) {
+			toasts.success(`Project "${newProjectName}" created.`);
 			newProjectName = '';
 			await invalidateAll();
 		} else {
 			createProjErr = ((await res.json().catch(() => ({}))) as { message?: string }).message ?? 'Failed';
+			toasts.error(createProjErr);
 		}
 	}
 
 	async function publishVersion(projectId: string) {
-		await fetch(`/api/projects/${projectId}/versions`, {
+		const res = await fetch(`/api/projects/${projectId}/versions`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ notes: 'Published for review' })
 		});
-		await invalidateAll();
+		if (res.ok) {
+			toasts.success('New review version published - members notified.');
+			await invalidateAll();
+		} else toasts.error('Could not publish version.');
 	}
 	async function approveProject(projectId: string) {
-		await fetch(`/api/projects/${projectId}/approve`, { method: 'POST' });
-		await invalidateAll();
+		const res = await fetch(`/api/projects/${projectId}/approve`, { method: 'POST' });
+		if (res.ok) {
+			toasts.success('Project approved.');
+			await invalidateAll();
+		} else {
+			const m = ((await res.json().catch(() => ({}))) as { message?: string }).message;
+			toasts.error(m ?? 'Only a reviewer may approve.');
+		}
 	}
 
 	// Breadcrumb: Dashboard / [facility?] / [building-switcher]. The building

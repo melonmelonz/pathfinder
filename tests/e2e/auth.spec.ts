@@ -44,8 +44,10 @@ test('T-2.1.2 a wrong password is rejected with a generic error and no session',
 	await page.getByLabel('Password').fill('wrong-password');
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	// Generic error is shown and we stay on /login.
-	await expect(page.getByRole('alert')).toContainText(/invalid email or password/i);
+	// Generic error is announced as a toast (role=alert) and echoed inline; we
+	// stay on /login.
+	await expect(page.getByTestId('toast')).toContainText(/invalid email or password/i);
+	await expect(page.getByTestId('login-error')).toContainText(/invalid email or password/i);
 	await expect(page).toHaveURL(/\/login/);
 
 	// No session cookie was issued.

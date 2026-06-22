@@ -3,6 +3,7 @@
 	// Comments attach to the selected annotation; replies nest under a parent;
 	// resolving hides (not deletes); @-mentions fan out to batched notifications.
 	import { onMount } from 'svelte';
+	import { toasts } from '$lib/stores/toasts.svelte';
 
 	interface Comment {
 		id: string;
@@ -53,7 +54,10 @@
 		const fd = new FormData();
 		fd.append('file', file);
 		const res = await fetch(`/api/documents/${documentId}/comment-images`, { method: 'POST', body: fd });
-		if (res.ok) pendingImages = [...pendingImages, ((await res.json()) as { key: string }).key];
+		if (res.ok) {
+			pendingImages = [...pendingImages, ((await res.json()) as { key: string }).key];
+			toasts.success('Image attached.');
+		} else toasts.error('Image upload failed.');
 	}
 
 	async function post(text: string, parentId: string | null) {
@@ -71,16 +75,20 @@
 			replyTo = null;
 			pendingImages = [];
 			await load();
-		}
+			toasts.success(parentId ? 'Reply posted.' : 'Comment posted.');
+		} else toasts.error('Could not post comment.');
 	}
 
 	async function toggleResolve(c: Comment) {
-		await fetch(`/api/comments/${c.id}`, {
+		const res = await fetch(`/api/comments/${c.id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ resolved: !c.resolved })
 		});
-		await load();
+		if (res.ok) {
+			await load();
+			toasts.success(c.resolved ? 'Thread reopened.' : 'Thread resolved.');
+		} else toasts.error('Could not update the thread.');
 	}
 </script>
 
