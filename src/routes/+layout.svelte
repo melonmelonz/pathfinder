@@ -11,6 +11,10 @@
 	import { activeBrand, brandToCssVars } from '$lib/brand';
 	import Logo from '$lib/components/Logo.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
+	// LIVE TDD DEMO - Step 4: powers the header avatar badge with the initials()
+	// function you build live. Uncomment this import AND the badge block in the
+	// nav below; the badge renders only once initials() returns a value (green).
+	// import { initials } from '$lib/utils/initials';
 
 	// White-label shell (Epic E1): the active brand's tokens are injected onto
 	// :root as CSS custom properties; every component references var(--brand-*).
@@ -53,6 +57,26 @@
 				{#if user.role === 'admin'}
 					<a href="/admin" class="navlink" class:active={isActive('/admin')} data-testid="nav-admin">Admin</a>
 				{/if}
+				<!-- LIVE TDD DEMO - Step 4: avatar badge beside the name, powered by
+				     your tested initials(). Uncomment the block below AND the
+				     `import { initials }` line marked Step 4 in <script>. It stays
+				     hidden until initials() returns a value (test green), then it
+				     lights up here beside the name. -->
+				<!--
+				{@const ini = initials(user.name)}
+				{#if ini}
+					<div
+						aria-hidden="true"
+						style="display: grid; place-items: center; width: 1.9rem; height: 1.9rem;
+						       border-radius: 999px; font-family: var(--brand-font-mono);
+						       font-size: 0.72rem; font-weight: 700; color: var(--brand-primary);
+						       background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+						       border: 1px solid color-mix(in srgb, var(--brand-primary) 45%, transparent);"
+					>
+						{ini}
+					</div>
+				{/if}
+				-->
 				<span class="who" data-testid="nav-user">
 					<span class="who-name">{user.name}</span>
 					<span class="who-role">{user.role}</span>
@@ -77,28 +101,6 @@
 </div>
 
 <Toaster />
-
-<!-- ============================================================
-     LIVE TDD DEMO - Step 4 (the visual payoff).
-     Uncomment THIS BLOCK ONLY (one place, no jumping around) after your
-     initials() test goes green, then reload: the signed-in user gets an
-     avatar badge in the corner. Self-contained - no import, no extra CSS.
-     ============================================================ -->
-<!--
-{#if user}
-	<div
-		aria-hidden="true"
-		style="position: fixed; top: 0.8rem; right: 1.25rem; z-index: 150;
-		       display: grid; place-items: center; width: 2rem; height: 2rem;
-		       border-radius: 999px; font-family: var(--brand-font-mono);
-		       font-size: 0.75rem; font-weight: 700; color: var(--brand-primary);
-		       background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-		       border: 1px solid color-mix(in srgb, var(--brand-primary) 45%, transparent);"
-	>
-		{user.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
-	</div>
-{/if}
--->
 
 <style>
 	.skip-link {

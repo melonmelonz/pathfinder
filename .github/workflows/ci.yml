@@ -1,8 +1,9 @@
-# Continuous integration (Epic E14 - Quality & Delivery Harness).
-# Runs the type/diagnostics gate and the Vitest unit suite on every push/PR,
-# and the Playwright E2E suite (against a local wrangler pages dev with a
-# local D1 + seed) as a separate job. Deploys are NOT git-triggered: this is a
-# direct-deploy project (wrangler pages deploy), so CI only verifies.
+# Continuous integration + delivery (Epic E14 - Quality & Delivery Harness).
+# On every push/PR: the type/diagnostics gate + Vitest unit suite, and the
+# Playwright E2E suite (against a local wrangler pages dev with a local D1 +
+# seed). On push to main only, after BOTH test jobs pass, a direct deploy to
+# Cloudflare Pages (wrangler pages deploy - this project has no git provider
+# integration, so the deploy runs from CI with an API token).
 
 name: CI
 
@@ -48,3 +49,43 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  deploy:
+    name: deploy (Cloudflare Pages)
+    runs-on: ubuntu-latest
+    # Only on a real push to main, and only once both test jobs are green.
+    needs: [unit, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      # Secrets aren't available in a job-level `if`, so gate on them here: a
+      # repo without the Cloudflare secrets still gets a GREEN run (deploy is
+      # skipped with a warning) rather than a hard failure.
+      - name: Check deploy secrets
+        id: secrets
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CF_API_TOKEN" ] && [ -n "$CF_ACCOUNT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set - skipping deploy. Add them in repo Settings > Secrets and variables > Actions."
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.secrets.outputs.ready == 'true'
+      - run: npm run build
+        if: steps.secrets.outputs.ready == 'true'
+      - name: Deploy to Cloudflare Pages
+        if: steps.secrets.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy .svelte-kit/cloudflare --project-name=pathfinder --branch=main

@@ -9,9 +9,12 @@ UI plumbing, no flakiness.
 initials (e.g. for a user avatar badge). `"Test Admin" -> "TA"`. Pure, obvious,
 and the kind of helper a real app actually needs.
 
-> Keep these two files OUT of git until the demo so the repo stays green. You
-> create them live (or pre-create the empty stubs and only type the two
-> highlighted fill-ins on stage).
+> The files are committed but **commented out**, so the public repo / prod ship
+> no real feature and CI stays green (`tests/unit/initials.test.ts` holds a
+> single `it.todo` placeholder; `src/lib/utils/initials.ts` has its export
+> commented; the Step-4 layout blocks are commented). On stage you just
+> **uncomment** the marked lines - red, then green. No file creation, no jumping
+> around.
 
 ---
 
@@ -24,13 +27,15 @@ cd ~/dev/pathfinder
 npx vitest --watch initials
 ```
 
-It will say "no test files found" - that's expected; we create one next.
+It shows the `it.todo` placeholder as a pending todo - that's the committed
+state. We turn it into a real spec next.
 
 ---
 
-## Step 1 - RED: write the test, watch it fail (you type this live)
+## Step 1 - RED: uncomment the test, watch it fail (you do this live)
 
-Create `tests/unit/initials.test.ts`:
+In `tests/unit/initials.test.ts`, uncomment the two import lines and the
+assertion block (they're right there, commented). It becomes:
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -38,26 +43,24 @@ import { initials } from '../../src/lib/utils/initials';
 
 describe('initials', () => {
 	it('takes up to two uppercase initials from a name', () => {
-		// >>> THE LIVE FILL-IN (type this line on stage) <<<
 		expect(initials('Test Admin')).toBe('TA');
 	});
 });
 ```
 
-Save. The watcher goes **RED** - `initials` does not exist yet
-("Failed to resolve import"). *"That's TDD: the test describes the behaviour
-before the code exists. Red means we have a real, failing spec to satisfy."*
+Save. The watcher goes **RED** - `initials` is exported nowhere yet (its body is
+still commented). *"That's TDD: the test describes the behaviour before the code
+exists. Red means we have a real, failing spec to satisfy."*
 
 ---
 
-## Step 2 - GREEN: write the code, watch it pass (you type this live)
+## Step 2 - GREEN: uncomment the code, watch it pass (you do this live)
 
-Create `src/lib/utils/initials.ts`:
+In `src/lib/utils/initials.ts`, uncomment the `export function initials` block:
 
 ```ts
 /** Up to two uppercase initials from a full name ("Test Admin" -> "TA"). */
 export function initials(name: string): string {
-	// >>> THE LIVE FILL-IN (type this body on stage) <<<
 	return name
 		.trim()
 		.split(/\s+/)
@@ -94,28 +97,34 @@ to a spec, not to one happy-path example.
 
 ## Step 4 (optional bonus) - make it visible in the app
 
-There is **one commented block at the very bottom of
-`src/routes/+layout.svelte`** (right above `<style>`, marked
-`LIVE TDD DEMO - Step 4`). Uncomment that **single block** and reload - the
-signed-in user gets an initials avatar badge in the top-right corner. It's
-self-contained (inline style, no import, no CSS to touch elsewhere), so there's
-nothing to jump around for.
+The header avatar badge is **powered by your tested `initials()`**, so it only
+appears once the function returns a real value - i.e. only when your test is
+green. While `initials()` is unimplemented (returns `''`), the badge stays
+hidden; the moment you make it green it lights up beside the user's name.
 
-*"Test-first, then a one-line uncomment lights it up in the real UI."* The block
-inlines the same initials logic you just wrote; to drive it from your tested
-`initials()` instead, swap the inline expression for `initials(user.name)` and
-add the import.
+Two small spots in `src/routes/+layout.svelte` carry it, both marked
+`LIVE TDD DEMO - Step 4`:
+1. the `import { initials } from '$lib/utils/initials';` line in `<script>`, and
+2. the badge block in the nav, just before `<span class="who">`.
+
+Uncomment both, then reload. Before you implement the function: signed in, no
+badge (red). After Step 2 makes it return `"TA"`: the badge appears beside the
+name (green). That is the payoff - *the UI feature is literally dead until the
+test passes.*
 
 ---
 
 ## Cleanup after the demo
 
-```bash
-rm tests/unit/initials.test.ts src/lib/utils/initials.ts
-# then re-comment the one Step-4 block at the bottom of src/routes/+layout.svelte
-```
+Re-comment what you uncommented so the repo returns to its shipped state:
+- `tests/unit/initials.test.ts` - re-comment the imports + assertion (leave the
+  `it.todo` placeholder active so Vitest still collects the file).
+- `src/lib/utils/initials.ts` - re-comment the `export function initials` block.
+- `src/routes/+layout.svelte` - re-comment the Step-4 import and the nav badge
+  block.
 
-The repo is back to its committed, all-green state.
+`git checkout tests/unit/initials.test.ts src/lib/utils/initials.ts src/routes/+layout.svelte`
+does the same in one shot. The repo is back to its committed, all-green state.
 
 ---
 
