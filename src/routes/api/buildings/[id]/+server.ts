@@ -13,6 +13,7 @@ import {
 	validateName,
 	validateFloors
 } from '$lib/server/hierarchy';
+import { indexEntity, removeFromIndex } from '$lib/server/search';
 
 export const GET: RequestHandler = async ({ locals, platform, params }) => {
 	const env = platform?.env;
@@ -49,6 +50,7 @@ export const PUT: RequestHandler = async ({ locals, platform, params, request })
 	await updateBuilding(env, params.id, { name: body.name, floors: body.floors });
 	await audit(env, locals.user.id, 'hierarchy.building.update', `building:${params.id}`, request);
 	const updated = await getBuilding(env, locals.user, params.id);
+	if (updated) await indexEntity(env, 'building', updated.id, updated.name, 'Building', `/buildings/${updated.id}`);
 	return json({ building: updated });
 };
 
@@ -60,6 +62,7 @@ export const DELETE: RequestHandler = async ({ locals, platform, params, request
 	const building = await getBuilding(env, locals.user, params.id);
 	if (!building) error(404, 'Building not found.');
 	await deleteBuilding(env, params.id);
+	await removeFromIndex(env, 'building', params.id);
 	await audit(env, locals.user.id, 'hierarchy.building.delete', `building:${params.id}`, request);
 	return json({ ok: true });
 };

@@ -7,7 +7,7 @@
 *A platform by [Pathfinder LiDAR Solutions](https://pathfinder-lidar.pages.dev).*
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-3f6e98)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-170%20unit%20%2B%2058%20e2e%20passing-2e8b57)](#testing-tdd)
+[![Tests](https://img.shields.io/badge/tests-179%20unit%20%2B%2058%20e2e%20passing-2e8b57)](#testing-tdd)
 [![Stack](https://img.shields.io/badge/SvelteKit-Cloudflare-6fa8d4)](#architecture)
 [![3D](https://img.shields.io/badge/3D-Gaussian%20Splats%20(SPZ)-a9cce3)](#3d-scans)
 [![Edition](https://img.shields.io/badge/model-open%20core-c4e2f5)](#editions)
@@ -272,10 +272,12 @@ Every document has a polished, shareable PDF in [`docs/pdf/`](./docs/pdf/) (rebu
 
 ## Project status
 
-S0 (inherited v1 engines) baseline; **S1 (auth, hardened) and S2 (hierarchy + dashboards) complete**,
-deployed to the test project at [pathfinder-c3o.pages.dev](https://pathfinder-c3o.pages.dev). 50 unit +
-6 e2e tests green. Remaining sprints port the 2D engine, add the scan library, 3D splat viewer, search,
-collaboration, and compliance.
+All fourteen epics (E1-E14) are built and deployed to
+[pathfinder-c3o.pages.dev](https://pathfinder-c3o.pages.dev): the white-label shell, auth/RBAC, the
+org hierarchy, the ported 2D annotation + NFPA export engines, the scan library with R2 multipart
+upload, the 3D splat viewer, collaboration, global search, compliance/NG911 export, an admin console,
+and a model-independent AI responder briefing. **179 unit + 58 e2e tests green**, with CI gating every
+change. Forward-looking items (RapidSOS, SSO/SAML, Stripe billing) are tracked in the editions doc.
 
 ## Contributing
 

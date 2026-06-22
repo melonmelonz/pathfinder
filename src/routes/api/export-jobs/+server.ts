@@ -4,8 +4,22 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isGlobalScope } from '$lib/server/hierarchy';
+import { isGlobalScope, getDistrict, getFacility, getBuilding, type ScopeUser } from '$lib/server/hierarchy';
 import { createJob, listJobs } from '$lib/server/exports';
+
+// A scope is reachable only if the caller can see the underlying entity. Without
+// this, a client could read/enqueue jobs for another org by guessing an id.
+async function scopeVisible(
+	env: { DB: D1Database },
+	user: ScopeUser & { id?: string },
+	scopeType: string,
+	scopeId: string
+): Promise<boolean> {
+	if (scopeType === 'district') return !!(await getDistrict(env, user, scopeId));
+	if (scopeType === 'facility') return !!(await getFacility(env, user, scopeId));
+	if (scopeType === 'building') return !!(await getBuilding(env, user, scopeId));
+	return false;
+}
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const env = platform?.env;
@@ -14,6 +28,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const scopeType = url.searchParams.get('scopeType');
 	const scopeId = url.searchParams.get('scopeId');
 	if (!scopeType || !scopeId) error(400, 'scopeType and scopeId are required.');
+	if (!(await scopeVisible(env, locals.user, scopeType, scopeId))) error(404, 'Scope not found.');
 	return json({ jobs: await listJobs(env, { scopeType, scopeId }) });
 };
 
@@ -30,6 +45,7 @@ export const POST: RequestHandler = async ({ locals, platform, request }) => {
 		error(400, 'Malformed request body.');
 	}
 	if (!body.scopeType || !body.scopeId) error(400, 'scopeType and scopeId required.');
+	if (!(await scopeVisible(env, locals.user, body.scopeType, body.scopeId))) error(404, 'Scope not found.');
 	const job = await createJob(env, {
 		scopeType: body.scopeType,
 		scopeId: body.scopeId,

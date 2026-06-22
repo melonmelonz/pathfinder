@@ -142,7 +142,7 @@ with actor/date filtering + immutable CSV export.
 > "Open-core: the Community Edition is AGPL and self-hostable; Pathfinder Pro
 > adds the white-label multi-brand layer, the interactive splat viewer, the
 > batch pipeline, SSO/MFA and Stripe billing. It's live on Cloudflare today,
-> with 164 unit + 45 end-to-end tests green and CI gating every change."
+> with 179 unit + 58 end-to-end tests green and CI gating every change."
 
 ---
 

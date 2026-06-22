@@ -183,25 +183,31 @@
 		font-size: 0.75rem;
 		color: var(--brand-muted);
 	}
+	/* semantic status flags: amber = warning (review overdue), red = error
+	   (missing required data). The red matches the app-wide error red. */
 	.flag {
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius);
 		font-size: 0.9rem;
+		border-left-width: 3px;
+		border-left-style: solid;
 	}
 	.flag.stale {
-		background: color-mix(in srgb, #d97706 18%, transparent);
-		border: 1px solid #d97706;
+		background: color-mix(in srgb, #d9870622 18%, transparent);
+		border: 1px solid color-mix(in srgb, #d97706 55%, transparent);
+		border-left-color: #d97706;
 	}
 	.flag.missing {
-		background: color-mix(in srgb, #b22234 15%, transparent);
-		border: 1px solid #b22234;
+		background: color-mix(in srgb, #e2574c 14%, transparent);
+		border: 1px solid color-mix(in srgb, #e2574c 55%, transparent);
+		border-left-color: #e2574c;
 	}
 	.compliance {
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-3);
 		align-items: flex-end;
-		background: var(--brand-surface);
+		background: var(--surface-glass);
 		border: 1px solid color-mix(in srgb, var(--brand-secondary) 35%, transparent);
 		border-radius: var(--radius);
 		padding: var(--space-3);

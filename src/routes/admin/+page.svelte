@@ -165,11 +165,11 @@
 
 	<h2>Users</h2>
 	<form class="row-form" onsubmit={createUser} data-testid="create-user">
-		<input placeholder="Name" bind:value={nu.name} required />
-		<input placeholder="Email" type="email" bind:value={nu.email} required />
-		<input placeholder="Password (8+)" type="text" bind:value={nu.password} required />
+		<input placeholder="Name" aria-label="New user name" bind:value={nu.name} required />
+		<input placeholder="Email" aria-label="New user email" type="email" bind:value={nu.email} required />
+		<input placeholder="Password (8+)" aria-label="New user password" type="text" bind:value={nu.password} required />
 		<select bind:value={nu.role} aria-label="Role"><option>admin</option><option>staff</option><option>client</option></select>
-		<input placeholder="Org (optional)" bind:value={nu.org} />
+		<input placeholder="Org (optional)" aria-label="New user organization" bind:value={nu.org} />
 		<button type="submit" data-testid="create-user-submit">Create user</button>
 		{#if createMsg}<span class="muted" data-testid="create-user-msg">{createMsg}</span>{/if}
 	</form>
@@ -195,7 +195,7 @@
 
 	<h2>API keys</h2>
 	<form class="row-form" onsubmit={issueKey} data-testid="issue-key">
-		<input placeholder="Key name" bind:value={keyName} required />
+		<input placeholder="Key name" aria-label="API key name" bind:value={keyName} required />
 		<select bind:value={keyScope} aria-label="Scope"><option value="read">read</option><option value="write">write</option></select>
 		<button type="submit" data-testid="issue-key-submit">Issue key</button>
 	</form>
@@ -221,8 +221,8 @@
 
 	<h2>Deployment settings</h2>
 	<form class="row-form" onsubmit={saveSetting} data-testid="settings-form">
-		<input placeholder="key" bind:value={setKey} required />
-		<input placeholder="value" bind:value={setVal} />
+		<input placeholder="key" aria-label="Setting key" bind:value={setKey} required />
+		<input placeholder="value" aria-label="Setting value" bind:value={setVal} />
 		<button type="submit" data-testid="setting-save">Save setting</button>
 	</form>
 	{#if data.settings.length}
@@ -234,8 +234,8 @@
 
 	<h2>Recent audit log</h2>
 	<form class="row-form" onsubmit={runFilter} data-testid="audit-filter">
-		<input placeholder="actor user id" bind:value={filterActor} />
-		<input placeholder="since (ISO)" bind:value={filterSince} />
+		<input placeholder="actor user id" aria-label="Filter by actor user id" bind:value={filterActor} />
+		<input placeholder="since (ISO)" aria-label="Filter since date" bind:value={filterSince} />
 		<button type="submit" data-testid="audit-filter-run">Filter</button>
 	</form>
 	{#if filtered}

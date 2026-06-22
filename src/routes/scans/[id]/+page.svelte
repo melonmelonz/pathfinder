@@ -8,6 +8,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { toasts } from '$lib/stores/toasts.svelte';
+	import { activeBrand } from '$lib/brand';
 	import type { PageData } from './$types';
 	import { distance3d, toMeters, formatMeasurement, type Vec3 } from '$lib/engines/splat-viewer/measure';
 	import {
@@ -78,13 +79,17 @@
 			const { SplatMesh } = await import('@sparkjsdev/spark');
 			three = THREE;
 			const w = host.clientWidth || 800;
-			const h = Math.max(420, Math.round(w * 0.6));
+			const h = host.clientHeight || Math.round(w * 0.6); // fill the host box
 			renderer = new THREE.WebGLRenderer({ antialias: true });
 			renderer.setSize(w, h);
 			renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+			renderer.domElement.style.width = '100%';
+			renderer.domElement.style.height = '100%';
 			host.appendChild(renderer.domElement);
 			scene = new THREE.Scene();
-			scene.background = new THREE.Color(0x0a131e);
+			// Brand background (THREE.Color accepts the CSS hex string), so the 3D
+			// scene reskins with the white-label brand layer like everything else.
+			scene.background = new THREE.Color(activeBrand.colors.bg);
 			camera = new THREE.PerspectiveCamera(60, w / h, 0.01, 1000);
 			camera.position.set(0, 1.6, 4);
 			controls = new OrbitControls(camera, renderer.domElement);
@@ -99,14 +104,28 @@
 				raf = requestAnimationFrame(loop);
 			};
 			loop();
+			// Keep the drawing buffer + camera aspect matched to the host box.
+			ro = new ResizeObserver(() => {
+				if (!renderer || !camera || !host) return;
+				const cw = host.clientWidth;
+				const ch = host.clientHeight;
+				if (cw === 0 || ch === 0) return;
+				renderer.setSize(cw, ch, false);
+				camera.aspect = cw / ch;
+				camera.updateProjectionMatrix();
+			});
+			ro.observe(host);
 		} catch (e) {
 			status = 'error:' + (e instanceof Error ? e.message : 'WebGL2 unavailable');
 		}
 	});
 
+	let ro: ResizeObserver | undefined;
+
 	onDestroy(() => {
 		// onDestroy also runs during SSR teardown, where rAF is undefined.
 		if (typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(raf);
+		ro?.disconnect();
 		renderer?.dispose?.();
 	});
 
@@ -259,7 +278,7 @@
 		</div>
 		{#if data.canEdit && !isVideo()}
 			<div class="actions">
-				<button class:active={measureMode} onclick={() => { measureMode = !measureMode; markerMode = null; measurePts = []; measureLabel = ''; }} data-testid="measure-toggle">Measure</button>
+				<button class:active={measureMode} aria-pressed={measureMode} onclick={() => { measureMode = !measureMode; markerMode = null; measurePts = []; measureLabel = ''; }} data-testid="measure-toggle">Measure</button>
 				<button onclick={saveViewpoint} data-testid="save-viewpoint">Save viewpoint</button>
 				<button class="primary" onclick={save} disabled={saving || !dirty} data-testid="save-3d">{saving ? 'Saving...' : dirty ? 'Save' : 'Saved'}</button>
 			</div>
@@ -294,7 +313,7 @@
 				<h2>Place marker</h2>
 				<div class="marker-tools" data-testid="marker3d-tools">
 					{#each MARKER3D_TYPES as mt (mt)}
-						<button class:active={markerMode === mt} onclick={() => { markerMode = markerMode === mt ? null : mt; measureMode = false; }} data-testid={`m3-${mt}`}>{mt}</button>
+						<button class:active={markerMode === mt} aria-pressed={markerMode === mt} onclick={() => { markerMode = markerMode === mt ? null : mt; measureMode = false; }} data-testid={`m3-${mt}`}>{mt}</button>
 					{/each}
 				</div>
 				<label class="scale">Scan units per metre
@@ -384,9 +403,9 @@
 		border: var(--line); border-radius: var(--radius-lg);
 		box-shadow: inset 0 0 60px -20px rgba(0,0,0,0.6), var(--shadow-1);
 	}
-	.host { width: 100%; min-height: 460px; }
-	.host :global(canvas) { display: block; width: 100%; cursor: crosshair; }
-	video { width: 100%; display: block; background: #000; border-radius: var(--radius-lg); }
+	.host { width: 100%; height: calc(100vh - 15rem); min-height: 30rem; }
+	.host :global(canvas) { display: block; width: 100%; height: 100%; cursor: crosshair; }
+	video { width: 100%; max-height: calc(100vh - 15rem); display: block; background: #000; border-radius: var(--radius-lg); }
 	.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--brand-muted); padding: var(--space-4); text-align: center; }
 	.overlay.err { color: #e2574c; }
 	.measure {

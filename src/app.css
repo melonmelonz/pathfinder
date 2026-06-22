@@ -273,12 +273,66 @@ select {
 label {
 	font-weight: 600;
 }
+/* Custom checkbox + radio: drawn from scratch so they match the console look
+   (no native chrome). Check mark via clip-path; radio dot via a scaled inner. */
 input[type='checkbox'],
 input[type='radio'] {
-	accent-color: var(--brand-primary);
-	width: 1rem;
-	height: 1rem;
+	appearance: none;
+	-webkit-appearance: none;
+	flex-shrink: 0;
+	display: inline-grid;
+	place-content: center;
+	width: 1.15rem;
+	height: 1.15rem;
+	margin: 0;
 	cursor: pointer;
+	border: var(--line-strong);
+	border-radius: 5px;
+	background: color-mix(in srgb, var(--brand-bg) 55%, transparent);
+	transition:
+		border-color var(--dur-1) var(--ease),
+		background var(--dur-1) var(--ease),
+		box-shadow var(--dur-2) var(--ease);
+}
+input[type='radio'] {
+	border-radius: 50%;
+}
+input[type='checkbox']:hover,
+input[type='radio']:hover {
+	border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+}
+input[type='checkbox']::before {
+	content: '';
+	width: 0.62rem;
+	height: 0.62rem;
+	transform: scale(0);
+	transition: transform var(--dur-1) var(--ease);
+	background: var(--brand-bg);
+	clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 18%, 84% 4%, 38% 70%);
+}
+input[type='radio']::before {
+	content: '';
+	width: 0.55rem;
+	height: 0.55rem;
+	border-radius: 50%;
+	transform: scale(0);
+	transition: transform var(--dur-1) var(--ease);
+	background: var(--brand-bg);
+}
+input[type='checkbox']:checked,
+input[type='radio']:checked {
+	background: var(--brand-primary);
+	border-color: var(--brand-primary);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 22%, transparent);
+}
+input[type='checkbox']:checked::before,
+input[type='radio']:checked::before {
+	transform: scale(1);
+}
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 input[type='file'] {
 	font-size: 0.85rem;

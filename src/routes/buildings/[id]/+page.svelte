@@ -207,7 +207,7 @@
 	<h2>Projects</h2>
 	{#if data.canEdit}
 		<form class="proj-create" onsubmit={createProject} data-testid="create-project">
-			<input placeholder="New project name" bind:value={newProjectName} required data-testid="new-project-name" />
+			<input placeholder="New project name" aria-label="New project name" bind:value={newProjectName} required data-testid="new-project-name" />
 			<button type="submit" data-testid="create-project-submit">Create project</button>
 			{#if createProjErr}<span class="muted" data-testid="create-project-err">{createProjErr}</span>{/if}
 		</form>
@@ -363,6 +363,7 @@
 		gap: var(--space-2);
 		align-items: center;
 		margin-bottom: var(--space-3);
+		flex-wrap: wrap;
 	}
 	.proj-create input {
 		flex: 1;
@@ -403,6 +404,7 @@
 		border-radius: var(--radius);
 		color: var(--brand-text);
 		text-decoration: none;
+		flex-wrap: wrap;
 		transition:
 			background var(--dur-1) var(--ease),
 			border-color var(--dur-1) var(--ease),

@@ -11,6 +11,8 @@
 	import { activeBrand, brandToCssVars } from '$lib/brand';
 	import Logo from '$lib/components/Logo.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
+	// LIVE TDD DEMO (step 4): uncomment after you implement the initials() helper.
+	// import { initials } from '$lib/utils/initials';
 
 	// White-label shell (Epic E1): the active brand's tokens are injected onto
 	// :root as CSS custom properties; every component references var(--brand-*).
@@ -24,6 +26,9 @@
 	// Active-section highlight for the primary nav.
 	const path = $derived(page.url.pathname);
 	const isActive = (href: string) => path === href || path.startsWith(href + '/');
+	// The floorplan editor and 3D scan viewer are full-bleed workspaces - they
+	// escape the centered content cap so the map/scene gets the whole viewport.
+	const wide = $derived(path.startsWith('/documents/') || path.startsWith('/scans/'));
 
 	onMount(() => {
 		document.documentElement.setAttribute('data-hydrated', 'true');
@@ -50,6 +55,10 @@
 				{#if user.role === 'admin'}
 					<a href="/admin" class="navlink" class:active={isActive('/admin')} data-testid="nav-admin">Admin</a>
 				{/if}
+				<!-- LIVE TDD DEMO (step 4): after you implement initials() live,
+				     uncomment this avatar + its import (top of <script>) + the
+				     .avatar CSS block below, and the user's initials light up. -->
+				<!-- <span class="avatar" aria-hidden="true">{initials(user.name)}</span> -->
 				<span class="who" data-testid="nav-user">
 					<span class="who-name">{user.name}</span>
 					<span class="who-role">{user.role}</span>
@@ -60,7 +69,7 @@
 		</nav>
 	</header>
 
-	<main id="main" class="site-main">
+	<main id="main" class="site-main" class:wide>
 		{@render children?.()}
 	</main>
 
@@ -177,6 +186,21 @@
 		font-family: var(--brand-font-mono);
 	}
 
+	/* LIVE TDD DEMO (step 4): uncomment together with the avatar span + import.
+	.avatar {
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: var(--radius-pill);
+		background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+		color: var(--brand-primary);
+		font-family: var(--brand-font-mono);
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+	*/
+
 	.btn-cta {
 		display: inline-block;
 		padding: var(--space-2) var(--space-4);
@@ -206,6 +230,12 @@
 		margin: 0 auto;
 		padding: var(--space-5) var(--space-4);
 		animation: pf-rise var(--dur-3) var(--ease-out) both;
+	}
+	/* Full-bleed workspace routes (floor editor, 3D viewer): use the whole width
+	   and a tighter top pad so the canvas dominates. */
+	.site-main.wide {
+		max-width: none;
+		padding: var(--space-3) var(--space-4) var(--space-4);
 	}
 
 	.site-footer {

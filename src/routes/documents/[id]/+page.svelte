@@ -3,7 +3,7 @@
 	// and drives the framework-agnostic engine modules. Falls back to a demo
 	// floorplan when object storage is not yet wired (E7/S4) so the tooling stays
 	// demonstrable. Map markers + NFPA export (E6) layer on in the map panel.
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import workerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
 	import type { PageData } from './$types';
 	import { screenToCanvas, toNorm, calcFitScale, clampScale } from '$lib/engines/2d-annotate/coords';
@@ -359,7 +359,32 @@
 			totalPages = 1;
 			await renderPage(1);
 		}
+		// Refit the map whenever the canvas area changes size (window resize,
+		// panel show/hide, orientation). Auto-fit yields once the user zooms.
+		ro = new ResizeObserver(() => {
+			if (!autoFit) return;
+			if (resizeRaf) cancelAnimationFrame(resizeRaf);
+			resizeRaf = requestAnimationFrame(fitToWidth);
+		});
+		if (area) ro.observe(area);
 	});
+
+	onDestroy(() => {
+		ro?.disconnect();
+		if (resizeRaf) cancelAnimationFrame(resizeRaf);
+	});
+
+	let ro: ResizeObserver | undefined;
+	let resizeRaf = 0;
+	let autoFit = true; // fit-to-width until the user manually zooms
+
+	function fitToWidth() {
+		if (!area || pdfPageWidth <= 0) return;
+		const next = clampScale(calcFitScale(area.clientWidth, pdfPageWidth));
+		if (Math.abs(next - scale) < 0.01) return; // avoid needless re-render
+		scale = next;
+		renderPage(currentPage);
+	}
 
 	function commit(a: Annotation) {
 		pushUndo(history, annotations);
@@ -382,6 +407,13 @@
 	}
 
 	function onPointerDown(e: PointerEvent) {
+		// Capture the pointer so move/up still fire if the cursor leaves the
+		// canvas mid-gesture (otherwise a drag/draw/pan gets stuck).
+		try {
+			(e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+		} catch {
+			/* not all pointer types support capture */
+		}
 		// Pan: pan tool, held space, or middle mouse - works regardless of edit rights.
 		if (tool === 'pan' || spaceHeld || e.button === 1) {
 			startPan(e);
@@ -597,6 +629,11 @@
 	const selectedMarker = () => markers.find((m) => m.id === selectedMapId) ?? null;
 
 	function onMapPointerDown(e: PointerEvent) {
+		try {
+			(e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+		} catch {
+			/* not all pointer types support capture */
+		}
 		if (tool === 'pan' || spaceHeld || e.button === 1) {
 			startPan(e);
 			return;
@@ -934,6 +971,9 @@
 		selectedId = null;
 		selectedMapId = null;
 		hallwayPts = [];
+		// Showing/hiding the comments panel changes the canvas width; let the
+		// ResizeObserver refit (re-enable auto-fit so the map fills the new space).
+		autoFit = true;
 		redraw();
 	}
 
@@ -991,10 +1031,17 @@
 	}
 
 	function onKey(e: KeyboardEvent) {
+		// Escape closes the delete-confirm modal from anywhere (the backdrop is
+		// never focused, so this is the reliable path).
+		if (e.key === 'Escape' && confirmDeleteOpen) {
+			confirmDeleteOpen = false;
+			return;
+		}
 		const t = e.target as HTMLElement;
 		if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
 		if (e.key === ' ' || e.code === 'Space') {
 			spaceHeld = true;
+			e.preventDefault(); // don't scroll the page while space-panning
 			return;
 		}
 		if (mapMode) {
@@ -1065,13 +1112,20 @@
 	function onWheel(e: WheelEvent) {
 		if (!(e.ctrlKey || e.metaKey)) return;
 		e.preventDefault();
+		autoFit = false;
 		scale = clampScale(scale + (e.deltaY < 0 ? 0.1 : -0.1));
 		renderPage(currentPage);
 	}
 
 	function setZoom(delta: number) {
+		autoFit = false; // manual zoom takes over from fit-to-width
 		scale = clampScale(scale + delta);
 		renderPage(currentPage);
+	}
+
+	function fitZoom() {
+		autoFit = true;
+		fitToWidth();
 	}
 </script>
 
@@ -1086,14 +1140,14 @@
 		<div class="actions">
 			<!-- mode -->
 			<div class="seg" role="group" aria-label="Editing mode">
-				<button class:on={!mapMode} onclick={() => mapMode && toggleMapMode()} data-testid="map-mode-toggle-annotate">Annotate</button>
-				<button class:on={mapMode} onclick={() => !mapMode && toggleMapMode()} data-testid="map-mode-toggle">Map</button>
+				<button class:on={!mapMode} aria-pressed={!mapMode} onclick={() => mapMode && toggleMapMode()} data-testid="map-mode-toggle-annotate">Annotate</button>
+				<button class:on={mapMode} aria-pressed={mapMode} onclick={() => !mapMode && toggleMapMode()} data-testid="map-mode-toggle">Map</button>
 			</div>
 
 			<!-- zoom -->
 			<div class="zoomgrp" role="group" aria-label="Zoom">
 				<button class="btn sm" onclick={() => setZoom(-0.25)} aria-label="Zoom out">&minus;</button>
-				<span class="zoom" data-nums>{Math.round(scale * 100)}%</span>
+				<button class="btn sm zoomval" onclick={fitZoom} aria-label="Fit to width" title="Fit to width" data-nums>{Math.round(scale * 100)}%</button>
 				<button class="btn sm" onclick={() => setZoom(0.25)} aria-label="Zoom in">+</button>
 			</div>
 
@@ -1363,13 +1417,6 @@
 		align-items: center;
 		gap: var(--space-1);
 	}
-	.zoom {
-		min-width: 3rem;
-		text-align: center;
-		font-size: 0.8rem;
-		font-family: var(--brand-font-mono);
-		color: var(--brand-muted);
-	}
 	.stylesel {
 		width: auto;
 		padding: 0.32rem 1.8rem 0.32rem 0.6rem;
@@ -1473,7 +1520,15 @@
 		border-radius: var(--radius-lg);
 		padding: var(--space-4);
 		box-shadow: inset 0 0 60px -20px rgba(0, 0, 0, 0.6);
-		min-height: 60vh;
+		/* Fill the viewport below the header + command bar so the map dominates.
+		   Top-left flow (not centered) so a zoomed-in map scrolls correctly. */
+		height: calc(100vh - 11rem);
+		min-height: 30rem;
+	}
+	.zoomval {
+		min-width: 3.4rem;
+		font-family: var(--brand-font-mono);
+		color: var(--brand-muted);
 	}
 	.canvas-stack {
 		position: relative;

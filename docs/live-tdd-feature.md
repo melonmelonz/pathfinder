@@ -94,34 +94,18 @@ to a spec, not to one happy-path example.
 
 ## Step 4 (optional bonus) - make it visible in the app
 
-If you want a visual payoff, drop an avatar badge in the header using the new
-function. In `src/routes/+layout.svelte`, inside the `.who` block:
+This is **pre-wired and commented** in `src/routes/+layout.svelte` so you just
+uncomment three short blocks live (each marked `LIVE TDD DEMO (step 4)`):
 
-```svelte
-<script>
-	import { initials } from '$lib/utils/initials';
-</script>
+1. the import near the top of `<script>`:
+   `// import { initials } from '$lib/utils/initials';`
+2. the avatar in the `.who` block:
+   `<!-- <span class="avatar" aria-hidden="true">{initials(user.name)}</span> -->`
+3. the `.avatar { ... }` CSS block at the bottom of `<style>`.
 
-<span class="avatar" aria-hidden="true">{initials(user.name)}</span>
-```
-
-```css
-.avatar {
-	display: grid;
-	place-items: center;
-	width: 2rem;
-	height: 2rem;
-	border-radius: var(--radius-pill);
-	background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-	color: var(--brand-primary);
-	font-family: var(--brand-font-mono);
-	font-size: 0.75rem;
-	font-weight: 700;
-}
-```
-
-Reload - the signed-in user now has a "TA" avatar. *"Test-first, then wired into
-the real UI in one line."*
+Uncomment all three, save - the signed-in user now shows a "TA" avatar in the
+header. *"Test-first, then lit up in the real UI by uncommenting three lines."*
+(The header has `data-testid="nav-user"`, so this is exactly where it appears.)
 
 ---
 
@@ -129,7 +113,7 @@ the real UI in one line."*
 
 ```bash
 rm tests/unit/initials.test.ts src/lib/utils/initials.ts
-# (and revert the +layout.svelte avatar if you added Step 4)
+# then re-comment the three Step-4 blocks in src/routes/+layout.svelte
 ```
 
 The repo is back to its committed, all-green state.

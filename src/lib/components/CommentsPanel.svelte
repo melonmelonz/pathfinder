@@ -128,7 +128,7 @@
 					</div>
 					{#if replyTo === c.id}
 						<form onsubmit={(e) => { e.preventDefault(); post(replyDraft, c.id); }}>
-							<input bind:value={replyDraft} placeholder="Reply..." data-testid="reply-input" />
+							<input bind:value={replyDraft} placeholder="Reply..." aria-label="Reply to comment" data-testid="reply-input" />
 							<button type="submit" data-testid="reply-submit">Send</button>
 						</form>
 					{/if}
@@ -168,10 +168,22 @@
 </aside>
 
 {#if lightbox}
-	<div class="lightbox" role="presentation" onclick={() => (lightbox = null)} data-testid="lightbox">
-		<img src={lightbox} alt="attachment full size" />
+	<div
+		class="lightbox"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Attachment preview"
+		tabindex="-1"
+		onclick={() => (lightbox = null)}
+		onkeydown={(e) => e.key === 'Escape' && (lightbox = null)}
+		data-testid="lightbox"
+	>
+		<img src={lightbox} alt="comment attachment, full size" />
+		<button class="lb-close" aria-label="Close preview" onclick={() => (lightbox = null)}>&times;</button>
 	</div>
 {/if}
+
+<svelte:window onkeydown={(e) => e.key === 'Escape' && lightbox && (lightbox = null)} />
 
 <style>
 	.comments { width: 16rem; display: flex; flex-direction: column; gap: var(--space-2); }
@@ -195,6 +207,8 @@
 	textarea { width: 100%; min-height: 4rem; background: var(--brand-surface); color: var(--brand-text); border: 1px solid color-mix(in srgb, var(--brand-secondary) 40%, transparent); border-radius: var(--radius); padding: var(--space-2); font: inherit; }
 	form button { margin-top: var(--space-1); padding: var(--space-1) var(--space-3); background: var(--brand-primary); color: var(--brand-bg); border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer; }
 	form button:disabled { opacity: 0.55; cursor: default; }
-	.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 60; padding: var(--space-4); }
-	.lightbox img { max-width: 90vw; max-height: 90vh; }
+	.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 60; padding: var(--space-4); }
+	.lightbox img { max-width: 90vw; max-height: 90vh; border-radius: var(--radius); box-shadow: var(--shadow-3); }
+	.lb-close { position: fixed; top: var(--space-3); right: var(--space-3); width: 2.4rem; height: 2.4rem; border-radius: var(--radius-pill); background: var(--surface-glass); border: var(--line-strong); color: var(--brand-text); font-size: 1.3rem; line-height: 1; cursor: pointer; }
+	.lb-close:hover { background: color-mix(in srgb, var(--brand-primary) 18%, transparent); }
 </style>

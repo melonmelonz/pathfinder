@@ -34,7 +34,6 @@
 	h1 { font-size: 1.6rem; }
 	.msg { color: var(--brand-muted); }
 	.actions { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-2); }
-	.btn { padding: var(--space-2) var(--space-3); border: 1px solid var(--brand-secondary); border-radius: var(--radius); text-decoration: none; color: var(--brand-text); }
-	.btn.primary { background: var(--brand-primary); color: var(--brand-bg); border-color: var(--brand-primary); font-weight: 600; }
+	/* buttons use the global .btn control system (app.css) - no local override. */
 	.ref { font-size: 0.75rem; color: var(--brand-muted); }
 </style>
