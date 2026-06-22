@@ -200,9 +200,22 @@ production. The app fails closed if a real `JWT_SECRET` is not set in production
 Pathfinder is **test-first**. Every acceptance criterion in
 [`docs/03-acceptance-criteria.md`](./docs/03-acceptance-criteria.md) maps to a test; user-visible
 behavior is verified with Playwright screenshots committed to the repo. Current suite:
-**170 unit + 58 e2e passing**. The mapping from criteria to test-writing prompts is the
+**179 unit + 58 e2e passing**. The mapping from criteria to test-writing prompts is the
 [TDD Plan](./docs/04-tdd-plan.md) ([PDF](./docs/pdf/Pathfinder-TDD-Plan.pdf)). Rules every
 contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
+
+### The red -> green loop
+
+The whole discipline is a tight loop: **write a failing test (red), then write the
+minimal code to pass it (green), then refactor.** Here it is on a real one-line
+helper (`initials("Test Admin") -> "TA"`), captured live from `vitest --watch`:
+
+| 1. Write the test - it fails | 2. Write the code - it passes |
+|---|---|
+| ![Failing test](./docs/assets/tdd-red.png) | ![Passing test](./docs/assets/tdd-green.png) |
+
+Step-by-step runbook for doing this live in a demo:
+[`docs/live-tdd-feature.md`](./docs/live-tdd-feature.md).
 
 ## Roadmap
 
