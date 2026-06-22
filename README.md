@@ -204,19 +204,26 @@ behavior is verified with Playwright screenshots committed to the repo. Current 
 [TDD Plan](./docs/04-tdd-plan.md) ([PDF](./docs/pdf/Pathfinder-TDD-Plan.pdf)). Rules every
 contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
 
-### The red -> green loop
+### Real test runs (pass and fail)
 
-The discipline is a tight loop: **a failing test (red) comes first, then the
-minimal code that makes it pass (green), then refactor.** Below is the project's
-actual suite - left, a real test failing (one assertion broken on purpose);
-right, the full `npm run test:unit` run, 179 passing:
+These are **actual captures** from this repo - real `vitest` and `playwright`
+output, not mock-ups. Each fail was produced by breaking one real assertion,
+captured, then restored.
 
-| Red - a real test fails | Green - the real suite passes |
+**Unit suite (Vitest)** - 179 tests across 22 files:
+
+| PASS - full unit suite | FAIL - one assertion broken (E4 workflow) |
 |---|---|
-| ![A real test failing](./docs/assets/tdd-red.png) | ![The real suite passing](./docs/assets/tdd-green.png) |
+| ![Unit suite passing](./docs/assets/tdd-unit-pass.png) | ![A unit test failing](./docs/assets/tdd-unit-fail.png) |
 
-Want to perform the loop live? A separate, self-contained runbook walks you
-through writing one tiny test and the code to pass it on stage:
+**End-to-end suite (Playwright)** - 58 tests, real browser:
+
+| PASS - full e2e suite | FAIL - login toast assertion broken |
+|---|---|
+| ![E2E suite passing](./docs/assets/tdd-e2e-pass.png) | ![An e2e test failing](./docs/assets/tdd-e2e-fail.png) |
+
+The red -> green loop (failing test first, then the minimal code to pass it) is
+the whole discipline. To perform it live on a tiny feature, see the runbook:
 [`docs/live-tdd-feature.md`](./docs/live-tdd-feature.md).
 
 ## Roadmap
