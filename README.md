@@ -206,15 +206,17 @@ contributor (human or AI) follows: [`AGENTS.md`](./AGENTS.md).
 
 ### The red -> green loop
 
-The whole discipline is a tight loop: **write a failing test (red), then write the
-minimal code to pass it (green), then refactor.** Here it is on a real one-line
-helper (`initials("Test Admin") -> "TA"`), captured live from `vitest --watch`:
+The discipline is a tight loop: **a failing test (red) comes first, then the
+minimal code that makes it pass (green), then refactor.** Below is the project's
+actual suite - left, a real test failing (one assertion broken on purpose);
+right, the full `npm run test:unit` run, 179 passing:
 
-| 1. Write the test - it fails | 2. Write the code - it passes |
+| Red - a real test fails | Green - the real suite passes |
 |---|---|
-| ![Failing test](./docs/assets/tdd-red.png) | ![Passing test](./docs/assets/tdd-green.png) |
+| ![A real test failing](./docs/assets/tdd-red.png) | ![The real suite passing](./docs/assets/tdd-green.png) |
 
-Step-by-step runbook for doing this live in a demo:
+Want to perform the loop live? A separate, self-contained runbook walks you
+through writing one tiny test and the code to pass it on stage:
 [`docs/live-tdd-feature.md`](./docs/live-tdd-feature.md).
 
 ## Roadmap
